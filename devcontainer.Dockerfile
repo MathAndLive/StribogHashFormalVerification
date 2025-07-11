@@ -10,7 +10,9 @@ RUN opam init --disable-sandboxing -y \
 # Use a login shell to install Coq and vscoq
 RUN bash -c "source /root/.opam/opam-init/init.sh > /dev/null 2>&1 && \
              opam install coq.8.16.1 -y && \
-             opam install vscoq-language-server -y"
+             opam install vscoq-language-server -y && \
+             opam repo add coq-released https://coq.inria.fr/opam/released -y && \
+             opam pin add coq-vst 2.15"
 
 # Set environment variables permanently
 ENV PATH="/root/.opam/default/bin:${PATH}"
