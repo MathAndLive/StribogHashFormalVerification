@@ -34,7 +34,10 @@ Definition block512_to_bytes (b : block512) : list byte :=
   Z_to_bytes 64 (Vec512.unsigned b).
 
     (* поиск i-ого элемента списка *)
-Definition nthi (il: list byte) (t: Z) :=
+Definition nthi (il: list Z) (t: Z) :=
+  nth (Z.to_nat t) il 0.
+
+Definition nthi_b (il: list byte) (t: Z) :=
   nth (Z.to_nat t) il Byte.zero.
 
 Definition pi' : list byte := map Byte.repr
@@ -58,15 +61,15 @@ Definition pi' : list byte := map Byte.repr
     ].
 
     (* применение функции pi *)
-Definition pi (il: list byte) : list byte :=
-  map (fun x => nthi pi' (Byte.unsigned x) ) il.
+Definition pi (il: list byte) :=
+  map (fun x => nthi_b pi' (Byte.unsigned x) ) il.
 
 Fixpoint bytelist_to_Z (k : nat) (il: list byte): Z :=
   match k with
   | O => Z.zero
   | S k' => match il with
     | [] => Z.zero
-    | x::xs => Byte.unsigned x + (Z.shiftl (bytelist_to_Z k' xs ) 8)
+    | x::xs =>(Byte.unsigned x) + (Z.shiftl (bytelist_to_Z k' xs ) 8)
     end
   end.
 
@@ -74,6 +77,7 @@ Fixpoint bytelist_to_Z (k : nat) (il: list byte): Z :=
 Definition bytelist_to_vec512 (k : nat) (il: list byte): block512 :=
   Vec512.repr (bytelist_to_Z k il).
 
+    (* функция S *)
 Definition s (v : block512) : block512 :=
     bytelist_to_vec512 64 (pi (block512_to_bytes v)).
 
