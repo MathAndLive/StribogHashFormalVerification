@@ -27,7 +27,6 @@ Definition LSB (n: nat) (b: Z) : Z :=
   Z_mod_two_p b n.
 
 
-
   (* разделение числа на k векторов длины m *)
 Fixpoint Z_to_chunk (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
@@ -93,6 +92,7 @@ Definition s (v : block512) : block512 :=
   (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
 
+(* АХ: судя по госту, эта функция называется tau *)
 Definition p' : list Z :=
   [0; 8; 16; 24; 32; 40; 48; 56;
    1; 9; 17; 25; 33; 41; 49; 57;
@@ -104,16 +104,23 @@ Definition p' : list Z :=
    7; 15; 23; 31; 39; 47; 55; 63].
 
 
-
 Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
   match perm with
   | [] => []
   | i :: ps => (nth (Z.to_nat i) l default) :: (permute_a0toa63 ps l)
+  (*  АХ: сейчас для элемента i , который принимает значение от - до 255,
+      находится значение в матрицe perm с индексом i и подставляется на место элемента i.
+      Но судя по госту алгоритм другой:
+      элементы в списке нумеруются с 63 до 0 (0<=k<64), и на место элемента с номером k
+      становится элемент с номером (tau k)
+      Интуитивно можно сказать так: если разложить вектор l в виде матрицы 8*8,
+      то преобразование выглядит как транспонирование.
+  *)
   end.
 
 Definition p (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63 perm l).
 
-
+(* Почему нельзя объединить A' и A, как сделано для списка pi', например  *)
 Definition A' : list Z :=
   [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e;
     0x6c022c38f90a4c07; 0x3601161cf205268d; 0x1b8e0b0e798c13c8; 0x83478b07b2468764;
