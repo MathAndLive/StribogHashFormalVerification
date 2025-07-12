@@ -40,7 +40,10 @@ Definition block512_to_bytes (b : block512) : list byte :=
 Definition nthi (il: list Z) (t: Z) :=
   nth (Z.to_nat t) il 0.
 
-Definition pi' : list Z :=
+Definition nthi_b (il: list byte) (t: Z) :=
+  nth (Z.to_nat t) il Byte.zero.
+
+Definition pi' : list byte := map Byte.repr
     [
         252; 238; 221; 17; 207; 110; 49; 22; 251; 196; 250; 218; 35; 197; 4; 77;
         233; 119; 240; 219; 147; 46;153; 186; 23; 54; 241;187; 20; 205; 95; 193;
@@ -62,7 +65,7 @@ Definition pi' : list Z :=
 
     (* применение функции pi *)
 Definition pi (il: list byte) :=
-  map (fun x => nthi pi' (Byte.unsigned x) ) il.
+  map (fun x => nthi_b pi' (Byte.unsigned x) ) il.
 
 Fixpoint bytelist_to_Z (k : nat) (il: list byte): Z :=
   match k with
@@ -76,11 +79,10 @@ Fixpoint bytelist_to_Z (k : nat) (il: list byte): Z :=
     (* склеивание списка байтов в вектор *)
 Definition bytelist_to_Vec(k : nat) (il: list byte): block512 :=
   Vec512.repr (bytelist_to_Z k il).
-(*
-Definition bl := block512_to_bytes (Vec512.repr 3000).
-Compute bl.
-Definition v := bytelist_to_vec512 64 bl.
-Compute v. *)
+
+    (* функция S *)
+Definition s (v : block512) : block512 :=
+    bytelist_to_vec512 64 (pi (block512_to_bytes v)).
 
   (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
@@ -97,14 +99,17 @@ Definition p' : list Z :=
 
 
 
-Fixpoint p (perm : list Z) (l : list byte) : list byte :=
+Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
   match perm with
   | [] => []
-  | i :: ps => (nth (Z.to_nat i) l default) :: (p ps l)
+  | i :: ps => (nth (Z.to_nat i) l default) :: (permute_a0toa63 ps l)
   end.
 
-Definition A' : list Z := 
-  [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e; 
+Definition p (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63 perm l).
+
+
+Definition A' : list Z :=
+  [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e;
     0x6c022c38f90a4c07; 0x3601161cf205268d; 0x1b8e0b0e798c13c8; 0x83478b07b2468764;
     0xa011d380818e8f40; 0x5086e740ce47c920; 0x2843fd2067adea10; 0x14aff010bdd87508;
     0x0ad97808d06cb404; 0x05e23c0468365a02; 0x8c711e02341b2d01; 0x46b60f011a83988e;
@@ -122,7 +127,7 @@ Definition A' : list Z :=
     0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
     ].
 
-Definition A : list int64 := map (fun x => Int64.repr x) A'.    
+Definition A : list int64 := map (fun x => Int64.repr x) A'.
 
 Fixpoint Z_to_int64s (k : nat) (z : Z) : list int64 :=
   match k with
