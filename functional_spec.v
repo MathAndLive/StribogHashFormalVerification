@@ -13,6 +13,9 @@ End Wordsize_512.
 Strategy opaque [Wordsize_512.wordsize].
 
 Module Vec512 := Make(Wordsize_512).
+
+Strategy 0 [Wordsize_512.wordsize].
+
 Notation block512 := Vec512.int.
 
 Definition firstn_z (n: nat) (b: Z) : Z :=
