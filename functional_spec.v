@@ -82,7 +82,7 @@ Definition bytelist_to_Vec(k : nat) (il: list byte): block512 :=
 
     (* функция S *)
 Definition s (v : block512) : block512 :=
-    bytelist_to_vec512 64 (pi (block512_to_bytes v)).
+    bytelist_to_Vec 64 (pi (block512_to_bytes v)).
 
   (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
