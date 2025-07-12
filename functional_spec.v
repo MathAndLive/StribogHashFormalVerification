@@ -98,8 +98,8 @@ Fixpoint p (perm : list Z) (l : list byte) : list byte :=
   | i :: ps => (nth (Z.to_nat i) l default) :: (p ps l)
   end.
 
-Definition A' : list Z := 
-  [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e; 
+Definition A' : list Z :=
+  [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e;
     0x6c022c38f90a4c07; 0x3601161cf205268d; 0x1b8e0b0e798c13c8; 0x83478b07b2468764;
     0xa011d380818e8f40; 0x5086e740ce47c920; 0x2843fd2067adea10; 0x14aff010bdd87508;
     0x0ad97808d06cb404; 0x05e23c0468365a02; 0x8c711e02341b2d01; 0x46b60f011a83988e;
@@ -117,12 +117,12 @@ Definition A' : list Z :=
     0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
     ].
 
-Definition A : list int64 := map (fun x => Int64.repr x) A'.    
+Definition A : list int64 := map (fun x => Int64.repr x) A'.
 
 Fixpoint Z_to_int64s (k : nat) (z : Z) : list int64 :=
   match k with
   | O => nil
-  | S k' => (Int64.repr (firstn_z 64 z))::
+  | S k' => (Int64.repr (LSB 64 z))::
               (Z_to_int64s k' (Z.shiftr z 64) )
   end.
 
