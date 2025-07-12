@@ -96,11 +96,14 @@ Definition p' : list Z :=
 
 
 
-Fixpoint p (perm : list Z) (l : list byte) : list byte :=
+Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
   match perm with
   | [] => []
-  | i :: ps => (nth (Z.to_nat i) l default) :: (p ps l)
+  | i :: ps => (nth (Z.to_nat i) l default) :: (permute_a0toa63 ps l)
   end.
+
+Definition p (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63 perm l).
+
 
 Definition A' : list Z :=
   [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e;
