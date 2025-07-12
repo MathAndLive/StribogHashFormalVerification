@@ -124,7 +124,7 @@ Definition A : list int64 := map (fun x => Int64.repr x) A'.
 Fixpoint Z_to_int64s (k : nat) (z : Z) : list int64 :=
   match k with
   | O => nil
-  | S k' => (Int64.repr (firstn_z 64 z))::
+  | S k' => (Int64.repr (LSB() 64 z))::
               (Z_to_int64s k' (Z.shiftr z 64) )
   end.
 
@@ -137,3 +137,6 @@ Definition g(N h m: block512) : block512.
 Admitted.
 
 Definition Message := list bool.
+
+Definition stage_2(M : Message) :=
+  if length
