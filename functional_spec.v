@@ -26,12 +26,18 @@ Notation block512 := Vec512.int.
 Definition LSB (n: nat) (b: Z) : Z :=
   Z_mod_two_p b n.
 
-  (* разделение числа на k байтов *)
-Fixpoint Z_to_bytes (k : nat) (z : Z) : list byte :=
+
+
+  (* разделение числа на k векторов длины m *)
+Fixpoint Z_to_chunk (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
   | O => nil
-  | S k' => Byte.repr (LSB 8 z) :: Z_to_bytes k' (Z.shiftr z 8)
+  | S k' => (LSB m z) :: Z_to_chunk m k' (Z.shiftr z (Z.of_nat m))
   end.
+
+  (* разделение числа на k байтов *)
+Definition Z_to_bytes (k : nat) (z : Z) : list byte :=
+  map Byte.repr (Z_to_chunk 8 k z).
 
 Definition block512_to_bytes (b : block512) : list byte :=
   Z_to_bytes 64 (Vec512.unsigned b).
@@ -77,12 +83,12 @@ Fixpoint bytelist_to_Z (k : nat) (il: list byte): Z :=
   end.
 
     (* склеивание списка байтов в вектор *)
-Definition bytelist_to_Vec(k : nat) (il: list byte): block512 :=
+Definition bytelist_to_block512(k : nat) (il: list byte): block512 :=
   Vec512.repr (bytelist_to_Z k il).
 
     (* функция S *)
 Definition s (v : block512) : block512 :=
-    bytelist_to_Vec 64 (pi (block512_to_bytes v)).
+    bytelist_to_block512 64 (pi (block512_to_bytes v)).
 
   (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
@@ -129,12 +135,9 @@ Definition A' : list Z :=
 
 Definition A : list int64 := map (fun x => Int64.repr x) A'.
 
-Fixpoint Z_to_int64s (k : nat) (z : Z) : list int64 :=
-  match k with
-  | O => nil
-  | S k' => (Int64.repr (LSB 64 z))::
-              (Z_to_int64s k' (Z.shiftr z 64) )
-  end.
+Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
+  map Int64.repr (Z_to_chunk 64 k z).
+
 
 Definition block512_to_int64s (b : block512) : list int64 :=
   Z_to_int64s 8 (Vec512.unsigned b).
