@@ -2,7 +2,9 @@ From VST.floyd Require Import proofauto library.
 
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Zbits.
+Require Import Coq.Strings.Ascii.
 Require Import compcert.lib.Coqlib.
+Require Import List.
 Import ListNotations.
 
 Module Wordsize_512.
@@ -14,6 +16,7 @@ End Wordsize_512.
 Strategy opaque [Wordsize_512.wordsize].
 
 Module Vec512 := Make(Wordsize_512).
+Definition Vec := list bool.
 
 Strategy 0 [Wordsize_512.wordsize].
 
@@ -71,7 +74,7 @@ Fixpoint bytelist_to_Z (k : nat) (il: list byte): Z :=
   end.
 
     (* склеивание списка байтов в вектор *)
-Definition bytelist_to_vec512 (k : nat) (il: list byte): block512 :=
+Definition bytelist_to_Vec(k : nat) (il: list byte): block512 :=
   Vec512.repr (bytelist_to_Z k il).
 (*
 Definition bl := block512_to_bytes (Vec512.repr 3000).
@@ -135,8 +138,11 @@ Definition block512_to_int64s (b : block512) : list int64 :=
 Definition g(N h m: block512) : block512.
 
 Admitted.
+    
+Definition stage_3 : block512.
+Admitted.
 
-Definition Message := list bool.
-
-Definition stage_2(M : Message) :=
-  if length
+(* 
+Definition stage_2(M : Vec) :=
+  if (length M <? 512)%nat then stage_3
+  else take 512 rev M. *)
