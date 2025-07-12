@@ -83,3 +83,9 @@ Definition IV512 : block512 := Vec512.repr 0.
 Definition g(N h m: block512) : block512.
 
 Admitted.
+
+Definition Message := list bool.
+
+
+
+(* Definition stage_2(M : Message). *)
