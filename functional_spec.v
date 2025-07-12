@@ -18,13 +18,13 @@ Strategy 0 [Wordsize_512.wordsize].
 
 Notation block512 := Vec512.int.
 
-Definition firstn_z (n: nat) (b: Z) : Z :=
+Definition LSB (n: nat) (b: Z) : Z :=
   Z_mod_two_p b n.
 
 Fixpoint Z_to_bytes (k : nat) (z : Z) : list byte :=
   match k with
   | O => nil
-  | S k' => Byte.repr (firstn_z 8 z) :: Z_to_bytes k' (Z.shiftr z 8)
+  | S k' => Byte.repr (LSB 8 z) :: Z_to_bytes k' (Z.shiftr z 8)
   end.
 
 Definition block512_to_bytes (b : block512) : list byte :=
