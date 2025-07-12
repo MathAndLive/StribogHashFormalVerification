@@ -62,3 +62,7 @@ Print Vec512.
 
 (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
+
+Definition g(N h m: block512) : block512.
+
+Admitted.
