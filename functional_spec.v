@@ -133,3 +133,12 @@ Fixpoint Z_to_int64s (k : nat) (z : Z) : list int64 :=
 Definition block512_to_int64s (b : block512) : list int64 :=
   Z_to_int64s 8 (Vec512.unsigned b).
 
+
+Definition g(N h m: block512) : block512.
+
+Admitted.
+
+Definition Message := list bool.
+
+Definition stage_2(M : Message) :=
+  if length
