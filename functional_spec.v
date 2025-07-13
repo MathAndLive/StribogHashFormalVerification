@@ -16,22 +16,16 @@ End Wordsize_512.
 Strategy opaque [Wordsize_512.wordsize].
 
 Module Vec512 := Make(Wordsize_512).
-Definition Vec := list bool.
 
 Strategy 0 [Wordsize_512.wordsize].
 
 Notation block512 := Vec512.int.
 
-    (* выделение первых n битов*)
-Definition LSB (n: nat) (b: Z) : Z :=
-  Z_mod_two_p b n.
-
-
   (* разделение числа на k векторов длины m *)
 Fixpoint Z_to_chunk (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
   | O => nil
-  | S k' => (LSB m z) :: Z_to_chunk m k' (Z.shiftr z (Z.of_nat m))
+  | S k' => (Z_mod_two_p z m) :: Z_to_chunk m k' (Z.shiftr z (Z.of_nat m))
   end.
 
   (* разделение числа на k байтов *)
@@ -72,22 +66,22 @@ Definition pi' : list byte := map Byte.repr
 Definition pi (il: list byte) :=
   map (fun x => nthi_b pi' (Byte.unsigned x) ) il.
 
-Fixpoint bytelist_to_Z (k : nat) (il: list byte): Z :=
+Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
   match k with
   | O => Z.zero
   | S k' => match il with
     | [] => Z.zero
-    | x::xs =>(Byte.unsigned x) + (Z.shiftl (bytelist_to_Z k' xs ) 8)
+    | x::xs =>(Byte.unsigned x) + (Z.shiftl (bytes_to_Z k' xs ) 8)
     end
   end.
 
     (* склеивание списка байтов в вектор *)
-Definition bytelist_to_block512(k : nat) (il: list byte): block512 :=
-  Vec512.repr (bytelist_to_Z k il).
+Definition bytes_to_block512(k : nat) (il: list byte): block512 :=
+  Vec512.repr (bytes_to_Z k il).
 
     (* функция S *)
-Definition s (v : block512) : block512 :=
-    bytelist_to_block512 64 (pi (block512_to_bytes v)).
+Definition S_transform (v : block512) : block512 :=
+    bytes_to_block512 64 (pi (block512_to_bytes v)).
 
   (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
@@ -103,7 +97,6 @@ Definition p' : list Z :=
    6; 14; 22; 30; 38; 46; 54; 62;
    7; 15; 23; 31; 39; 47; 55; 63].
 
-
 Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
   match perm with
   | [] => []
@@ -118,11 +111,28 @@ Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
   *)
   end.
 
-Definition p (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63 perm l).
+Definition P_transform (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63 perm l).
 
-(* Почему нельзя объединить A' и A, как сделано для списка pi', например  *)
-Definition A' : list Z :=
-  [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e;
+Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
+  map Int64.repr (Z_to_chunk 64 k z).
+
+Definition block512_to_int64s (b : block512) : list int64 :=
+  Z_to_int64s 8 (Vec512.unsigned b).
+  
+Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
+  match k with
+  | O => Z.zero
+  | S k' => match il with
+    | [] => Z.zero
+    | x::xs =>(Int64.unsigned x) + (Z.shiftl (int64s_to_Z k' xs ) 64)
+    end
+  end.
+  
+Definition int64s_to_block512 (k : nat) (il: list int64): block512 :=
+  Vec512.repr (int64s_to_Z k il).
+
+Definition A_mat : list Z := 
+  [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e; 
     0x6c022c38f90a4c07; 0x3601161cf205268d; 0x1b8e0b0e798c13c8; 0x83478b07b2468764;
     0xa011d380818e8f40; 0x5086e740ce47c920; 0x2843fd2067adea10; 0x14aff010bdd87508;
     0x0ad97808d06cb404; 0x05e23c0468365a02; 0x8c711e02341b2d01; 0x46b60f011a83988e;
@@ -140,24 +150,12 @@ Definition A' : list Z :=
     0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
     ].
 
-Definition A : list int64 := map (fun x => Int64.repr x) A'.
+Fixpoint list_dotproduct_Zbits (k : nat) (b : Z) (l : list Z) :=
+  match l with
+    | nil => nil
+    | x :: xs => (if Z.testbit b (Z.of_nat k) then x else 0) :: (list_dotproduct_Zbits (S k) b xs)
+  end.
 
-Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
-  map Int64.repr (Z_to_chunk 64 k z).
+Definition little_l (a : int64) : int64 := Int64.repr(fold_right Z.lxor 0 (list_dotproduct_Zbits 0 (Int64.unsigned a) A_mat)).
 
-
-Definition block512_to_int64s (b : block512) : list int64 :=
-  Z_to_int64s 8 (Vec512.unsigned b).
-
-
-Definition g(N h m: block512) : block512.
-
-Admitted.
-    
-Definition stage_3 : block512.
-Admitted.
-
-(* 
-Definition stage_2(M : Vec) :=
-  if (length M <? 512)%nat then stage_3
-  else take 512 rev M. *)
+Definition L_transform (b : block512) : block512 := int64s_to_block512 8 (map (fun x => little_l x) (block512_to_int64s b)).
