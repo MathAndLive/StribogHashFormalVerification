@@ -192,17 +192,19 @@ Proof.
 *)
 
   
-Program Fixpoint stage_2 (h N Sigma : block512%Z) (M : bits) {measure (length M)} : block512 :=
-  if (length M <? 512)%nat then stage_3 h N Sigma M
+Function stage_2 (h N Sigma : block512%Z) (M : bits) {measure length M} : block512 :=
+  if lt_dec (length M) 512 then stage_3 h N Sigma M
   else let m := bytes_to_block512 64 (bits_to_bytes (rev (firstn 512 (rev M)))) in
        let h := g N h m in
        let N := Vec512.repr (Vec512.unsigned N + 512) in
        let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
        let M := firstn ((length M) - 512) M in
        stage_2 h N Sigma M.
-Next Obligation.
-(* Qed. *)
-Admitted.
+Proof.
+  intros. eapply Nat.le_lt_trans.
+  - apply firstn_le_length.
+  - lia.
+Defined.
 
 Definition stage_1 (IV : block512) (M : bits) : block512 :=
   let h := IV in
