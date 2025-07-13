@@ -3,6 +3,7 @@ From VST.floyd Require Import proofauto library.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Zbits.
 Require Import Coq.Strings.Ascii.
+Require Import Coq.Program.Wf.
 Require Import compcert.lib.Coqlib.
 Require Import List.
 Import ListNotations.
@@ -16,32 +17,32 @@ End Wordsize_512.
 Strategy opaque [Wordsize_512.wordsize].
 
 Module Vec512 := Make(Wordsize_512).
-Definition Vec := list bool.
+Definition bits := list bool.
 
 Strategy 0 [Wordsize_512.wordsize].
 
 Notation block512 := Vec512.int.
 
-    (* выделение первых n битов*)
+(* выделение первых n битов*)
 Definition LSB (n: nat) (b: Z) : Z :=
   Z_mod_two_p b n.
 
 
-  (* разделение числа на k векторов длины m *)
+(* разделение числа на k векторов длины m *)
 Fixpoint Z_to_chunk (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
   | O => nil
   | S k' => (LSB m z) :: Z_to_chunk m k' (Z.shiftr z (Z.of_nat m))
   end.
 
-  (* разделение числа на k байтов *)
+(* разделение числа на k байтов *)
 Definition Z_to_bytes (k : nat) (z : Z) : list byte :=
   map Byte.repr (Z_to_chunk 8 k z).
 
 Definition block512_to_bytes (b : block512) : list byte :=
   Z_to_bytes 64 (Vec512.unsigned b).
 
-    (* поиск i-ого элемента списка *)
+(* поиск i-ого элемента списка *)
 Definition nthi (il: list Z) (t: Z) :=
   nth (Z.to_nat t) il 0.
 
@@ -68,26 +69,26 @@ Definition pi' : list byte := map Byte.repr
         89; 166; 116; 210; 230; 244; 180; 192; 209; 102; 175; 194; 57; 75; 99; 182
     ].
 
-    (* применение функции pi *)
+(* применение функции pi *)
 Definition pi (il: list byte) :=
   map (fun x => nthi_b pi' (Byte.unsigned x) ) il.
 
-Fixpoint bytelist_to_Z (k : nat) (il: list byte): Z :=
+Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
   match k with
   | O => Z.zero
   | S k' => match il with
     | [] => Z.zero
-    | x::xs =>(Byte.unsigned x) + (Z.shiftl (bytelist_to_Z k' xs ) 8)
+    | x::xs =>(Byte.unsigned x) + (Z.shiftl (bytes_to_Z k' xs ) 8)
     end
   end.
 
     (* склеивание списка байтов в вектор *)
-Definition bytelist_to_block512(k : nat) (il: list byte): block512 :=
-  Vec512.repr (bytelist_to_Z k il).
+Definition bytes_to_block512(k : nat) (il: list byte): block512 :=
+  Vec512.repr (bytes_to_Z k il).
 
     (* функция S *)
 Definition s (v : block512) : block512 :=
-    bytelist_to_block512 64 (pi (block512_to_bytes v)).
+    bytes_to_block512 64 (pi (block512_to_bytes v)).
 
   (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
@@ -154,10 +155,64 @@ Definition g(N h m: block512) : block512.
 
 Admitted.
     
-Definition stage_3 : block512.
+Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512.
 Admitted.
 
-(* 
-Definition stage_2(M : Vec) :=
-  if (length M <? 512)%nat then stage_3
-  else take 512 rev M. *)
+(* Конвертирует 8 бит в 1 байт *)
+Definition bits_to_byte (bs: bits) : byte :=
+  Byte.repr (
+    match bs with
+    | [b0; b1; b2; b3; b4; b5; b6; b7] =>
+        (if b7 then 128 else 0) +
+        (if b6 then 64 else 0) +
+        (if b5 then 32 else 0) +
+        (if b4 then 16 else 0) +
+        (if b3 then 8 else 0) +
+        (if b2 then 4 else 0) +
+        (if b1 then 2 else 0) +
+        (if b0 then 1 else 0)
+    | _ => 0
+    end
+  ).
+
+Fixpoint group_bits (bs: bits) : list bits :=
+  match bs with
+  | b0::b1::b2::b3::b4::b5::b6::b7::tail =>
+      [b0; b1; b2; b3; b4; b5; b6; b7] :: group_bits tail
+  | _ => []
+  end.
+
+Definition bits_to_bytes (bs: bits) : list byte :=
+  map bits_to_byte (group_bits bs).
+
+(* Я хз зачем тут Z.of_nat но без него не получилось. Почему-то expected Z for n : nat *)
+(* Lemma firstn_shortens : forall (A : Type) (n : nat) (l : list A), 
+  Z.of_nat n < Z.of_nat (length l) -> Z.of_nat (length (firstn n l))< Z.of_nat (length l).
+Proof.
+  intros A n l H.
+  rewrite length_firstn.
+*)
+
+  
+Program Fixpoint stage_2 (h N Sigma : block512%Z) (M : bits) {measure (length M)} : block512 :=
+  if (length M <? 512)%nat then stage_3 h N Sigma M
+  else let m := bytes_to_block512 64 (bits_to_bytes (rev (firstn 512 (rev M)))) in
+       let h := g N h m in
+       let N := Vec512.repr (Vec512.unsigned N + 512) in
+       let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
+       let M := firstn ((length M) - 512) M in
+       stage_2 h N Sigma M.
+Next Obligation.
+(* Qed. *)
+Admitted.
+
+
+
+Definition stage_1 (IV : block512) (M : bits) : block512 :=
+  let h := IV in
+  let N := Vec512.repr 0 in
+  let Sigma := Vec512.repr 0 in
+  stage_2 h N Sigma M.
+
+Definition H512 (M : bits) : block512 :=
+  stage_1 IV512 M.
