@@ -225,12 +225,12 @@ Definition A_mat : list Z :=
     0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
     ].
 
-Fixpoint list_almost_dotproduct_Zbits (k : nat) (b : Z) (l : list Z) := (* если b в виде битов (big-endian) это b_63 ... b_0, а l это [l0 ; ... ; l63] то эта функция выдаёт b_63 * l_0 XOR ... XOR b_0 * l_63 *)
+Fixpoint list_almost_dotproduct_Zbits (k : nat) (b : Z) (l : list Z) : Z := (* если b в виде битов (big-endian) это b_63 ... b_0, а l это [l0 ; ... ; l63] то эта функция выдаёт b_63 * l_0 XOR ... XOR b_0 * l_63 *)
   match l with
-    | nil => nil
-    | x :: xs => (if Z.testbit b (Z.of_nat (63 - k)) then x else 0) :: (list_almost_dotproduct_Zbits (S k) b xs)
+    | nil => 0
+    | x :: xs => Z.lxor (if Z.testbit b (Z.of_nat (63 - k)) then x else 0) (list_almost_dotproduct_Zbits (S k) b xs)
   end.
 
-Definition little_l (a : int64) : int64 := Int64.repr(fold_right Z.lxor 0 (list_almost_dotproduct_Zbits 0 (Int64.unsigned a) A_mat)).
+Definition little_l (a : int64) : int64 := Int64.repr(list_almost_dotproduct_Zbits 0 (Int64.unsigned a) A_mat).
 
 Definition L_transform (b : block512) : block512 := int64s_to_block512 8 (map (fun x => little_l x) (block512_to_int64s b)).
