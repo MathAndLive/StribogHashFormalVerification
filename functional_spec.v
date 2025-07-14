@@ -3,6 +3,7 @@ From VST.floyd Require Import proofauto library.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Zbits.
 Require Import Coq.Strings.Ascii.
+Require Import Coq.Program.Wf.
 Require Import compcert.lib.Coqlib.
 Require Import List.
 Import ListNotations.
@@ -16,32 +17,98 @@ End Wordsize_512.
 Strategy opaque [Wordsize_512.wordsize].
 
 Module Vec512 := Make(Wordsize_512).
+Definition bits := list bool.
 
 Strategy 0 [Wordsize_512.wordsize].
 
 Notation block512 := Vec512.int.
 
-  (* разделение числа на k векторов длины m *)
+(* выделение первых n битов*)
+Definition LSB (n: nat) (b: Z) : Z :=
+  Z_mod_two_p b n.
+
+
+(* разделение числа на k векторов длины m *)
 Fixpoint Z_to_chunk (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
   | O => nil
-  | S k' => (Z_mod_two_p z m) :: Z_to_chunk m k' (Z.shiftr z (Z.of_nat m))
+  | S k' => (LSB m z) :: Z_to_chunk m k' (Z.shiftr z (Z.of_nat m))
   end.
 
-  (* разделение числа на k байтов *)
+(* разделение числа на k байтов *)
 Definition Z_to_bytes (k : nat) (z : Z) : list byte :=
   map Byte.repr (Z_to_chunk 8 k z).
 
 Definition block512_to_bytes (b : block512) : list byte :=
   Z_to_bytes 64 (Vec512.unsigned b).
 
-    (* поиск i-ого элемента списка *)
+(* поиск i-ого элемента списка *)
 Definition nthi (il: list Z) (t: Z) :=
   nth (Z.to_nat t) il 0.
 
 Definition nthi_b (il: list byte) (t: Z) :=
   nth (Z.to_nat t) il Byte.zero.
 
+Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
+  match k with
+  | O => Z.zero
+  | S k' => match il with
+    | [] => Z.zero
+    | x::xs =>(Byte.unsigned x) + (Z.shiftl (bytes_to_Z k' xs ) 8)
+    end
+  end.
+
+    (* склеивание списка байтов в вектор *)
+Definition bytes_to_block512(k : nat) (il: list byte): block512 :=
+  Vec512.repr (bytes_to_Z k il).
+
+  Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
+  map Int64.repr (Z_to_chunk 64 k z).
+
+
+Definition block512_to_int64s (b : block512) : list int64 :=
+  Z_to_int64s 8 (Vec512.unsigned b).
+
+Definition bits_to_byte (bs: bits) : byte :=
+  Byte.repr (
+    match bs with
+    | [b0; b1; b2; b3; b4; b5; b6; b7] =>
+        (if b7 then 128 else 0) +
+        (if b6 then 64 else 0) +
+        (if b5 then 32 else 0) +
+        (if b4 then 16 else 0) +
+        (if b3 then 8 else 0) +
+        (if b2 then 4 else 0) +
+        (if b1 then 2 else 0) +
+        (if b0 then 1 else 0)
+    | _ => 0
+    end
+  ).
+
+Fixpoint group_bits (bs: bits) : list bits :=
+  match bs with
+  | b0::b1::b2::b3::b4::b5::b6::b7::tail =>
+      [b0; b1; b2; b3; b4; b5; b6; b7] :: group_bits tail
+  | _ => []
+  end.
+
+Definition bits_to_bytes (bs: bits) : list byte :=
+  map bits_to_byte (group_bits bs).
+
+Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
+  match perm with
+  | [] => []
+  | i :: ps => (nth (Z.to_nat i) l default) :: (permute_a0toa63 ps l)
+  (*  АХ: сейчас для элемента i , который принимает значение от - до 255,
+      находится значение в матрицe perm с индексом i и подставляется на место элемента i.
+      Но судя по госту алгоритм другой:
+      элементы в списке нумеруются с 63 до 0 (0<=k<64), и на место элемента с номером k
+      становится элемент с номером (tau k)
+      Интуитивно можно сказать так: если разложить вектор l в виде матрицы 8*8,
+      то преобразование выглядит как транспонирование.
+  *)
+  end.
+  
 Definition pi' : list byte := map Byte.repr
     [
         252; 238; 221; 17; 207; 110; 49; 22; 251; 196; 250; 218; 35; 197; 4; 77;
@@ -62,32 +129,19 @@ Definition pi' : list byte := map Byte.repr
         89; 166; 116; 210; 230; 244; 180; 192; 209; 102; 175; 194; 57; 75; 99; 182
     ].
 
-    (* применение функции pi *)
+(* применение функции pi *)
 Definition pi (il: list byte) :=
   map (fun x => nthi_b pi' (Byte.unsigned x) ) il.
-
-Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
-  match k with
-  | O => Z.zero
-  | S k' => match il with
-    | [] => Z.zero
-    | x::xs =>(Byte.unsigned x) + (Z.shiftl (bytes_to_Z k' xs ) 8)
-    end
-  end.
-
-    (* склеивание списка байтов в вектор *)
-Definition bytes_to_block512(k : nat) (il: list byte): block512 :=
-  Vec512.repr (bytes_to_Z k il).
-
     (* функция S *)
-Definition S_transform (v : block512) : block512 :=
+
+Definition s (v : block512) : block512 :=
     bytes_to_block512 64 (pi (block512_to_bytes v)).
 
   (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
 
 (* АХ: судя по госту, эта функция называется tau *)
-Definition p' : list Z :=
+Definition tau' : list Z :=
   [0; 8; 16; 24; 32; 40; 48; 56;
    1; 9; 17; 25; 33; 41; 49; 57;
    2; 10; 18; 26; 34; 42; 50; 58;
@@ -97,27 +151,46 @@ Definition p' : list Z :=
    6; 14; 22; 30; 38; 46; 54; 62;
    7; 15; 23; 31; 39; 47; 55; 63].
 
-Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
-  match perm with
-  | [] => []
-  | i :: ps => (nth (Z.to_nat i) l default) :: (permute_a0toa63 ps l)
-  (*  АХ: сейчас для элемента i , который принимает значение от - до 255,
-      находится значение в матрицe perm с индексом i и подставляется на место элемента i.
-      Но судя по госту алгоритм другой:
-      элементы в списке нумеруются с 63 до 0 (0<=k<64), и на место элемента с номером k
-      становится элемент с номером (tau k)
-      Интуитивно можно сказать так: если разложить вектор l в виде матрицы 8*8,
-      то преобразование выглядит как транспонирование.
-  *)
-  end.
+Definition p (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63 perm l).
 
-Definition P_transform (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63 perm l).
+Definition g(N h m: block512) : block512.
+Admitted.
+    
+Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512.
+Admitted.
 
-Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
-  map Int64.repr (Z_to_chunk 64 k z).
+(* Конвертирует 8 бит в 1 байт *)
 
-Definition block512_to_int64s (b : block512) : list int64 :=
-  Z_to_int64s 8 (Vec512.unsigned b).
+(* Я хз зачем тут Z.of_nat но без него не получилось. Почему-то expected Z for n : nat *)
+(* Lemma firstn_shortens : forall (A : Type) (n : nat) (l : list A), 
+  Z.of_nat n < Z.of_nat (length l) -> Z.of_nat (length (firstn n l))< Z.of_nat (length l).
+Proof.
+  intros A n l H.
+  rewrite length_firstn.
+*)
+  
+Function stage_2 (h N Sigma : block512%Z) (M : bits) {measure length M} : block512 :=
+  if lt_dec (length M) 512 then stage_3 h N Sigma M
+  else let m := bytes_to_block512 64 (bits_to_bytes (rev (firstn 512 (rev M)))) in
+       let h := g N h m in
+       let N := Vec512.repr (Vec512.unsigned N + 512) in
+       let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
+       let M := firstn ((length M) - 512) M in
+       stage_2 h N Sigma M.
+Proof.
+  intros. eapply Nat.le_lt_trans.
+  - apply firstn_le_length.
+  - lia.
+Defined.
+
+Definition stage_1 (IV : block512) (M : bits) : block512 :=
+  let h := IV in
+  let N := Vec512.repr 0 in
+  let Sigma := Vec512.repr 0 in
+  stage_2 h N Sigma M.
+
+Definition H512 (M : bits) : block512 :=
+  stage_1 IV512 M.
   
 Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
   match k with
