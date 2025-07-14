@@ -85,6 +85,8 @@ Definition bits_to_byte (bs: bits) : byte :=
     end
   ).
 
+(* Конвертирует 8 бит в 1 байт *)
+
 Fixpoint group_bits (bs: bits) : list bits :=
   match bs with
   | b0::b1::b2::b3::b4::b5::b6::b7::tail =>
@@ -180,17 +182,6 @@ Admitted.
     
 Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512.
 Admitted.
-
-(* Конвертирует 8 бит в 1 байт *)
-
-(* Я хз зачем тут Z.of_nat но без него не получилось. Почему-то expected Z for n : nat *)
-(* Lemma firstn_shortens : forall (A : Type) (n : nat) (l : list A), 
-  Z.of_nat n < Z.of_nat (length l) -> Z.of_nat (length (firstn n l))< Z.of_nat (length l).
-Proof.
-  intros A n l H.
-  rewrite length_firstn.
-*)
-
   
 Function stage_2 (h N Sigma : block512%Z) (M : bits) {measure length M} : block512 :=
   if lt_dec (length M) 512 then stage_3 h N Sigma M
