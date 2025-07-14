@@ -146,7 +146,7 @@ Definition tau : list Z :=
    6; 14; 22; 30; 38; 46; 54; 62;
    7; 15; 23; 31; 39; 47; 55; 63].
 
-Definition p (l : block512) : block512 := permute (rev tau) l.
+Definition p (l : block512) : block512 := permute tau l.
 
 Definition g(N h m: block512) : block512.
 Admitted.
