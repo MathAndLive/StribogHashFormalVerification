@@ -179,7 +179,7 @@ Definition A : list int64 := map Int64.repr
     0x492c024284fbaec0; 0xaa16012142f35760; 0x550b8e9e21f7a530; 0xa48b474f9ef5dc18;
     0x70a6a56e2440598e; 0x3853dc371220a247; 0x1ca76e95091051ad; 0x0edd37c48a08a6d8;
     0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
-  ]
+  ].
 
 (* если b в виде битов (big-endian) это b_63 ... b_0, а A это [a_0 ; ... ; a_63] то эта функция выдаёт b_63 * a_0 XOR ... XOR b_0 * a_63 *)
 Definition b_times_A (b : int64) : int64 :=
@@ -230,6 +230,16 @@ Fixpoint E (h N m : block512) (rounds : nat) : block512 :=
       | _      => LPSX Ki (E h N m n)
       end
   end.
+
+
+(* Другая версия с k_prev
+Fixpoint E' (h N m : block512) (c : list Z (* подается развернутый список*)) : block512 * block512 :=
+  match c with
+  | nil => (LPSX h N, m)
+  | x :: xs => let (k_prev, m') := E' h N m xs in
+               let k_new := LPSX k_prev (Vec512.repr x) in
+                (k_new, LPSX k_prev m')
+end. *)
 
 Definition g(N h m: block512) : block512 :=
   let K := LPSX h N in 
