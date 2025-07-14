@@ -15,6 +15,7 @@ struct streebog_uint512 {
 void streebog_xor(const struct streebog_uint512 *x,
 			 const struct streebog_uint512 *y,
 			 struct streebog_uint512 *z)
+(* ? чем отличается значение const при задании спецификации, учитывается оно или нет *)
 {
 	z->qword[0] = x->qword[0] ^ y->qword[0];
 	z->qword[1] = x->qword[1] ^ y->qword[1];
@@ -28,6 +29,7 @@ void streebog_xor(const struct streebog_uint512 *x,
 *)
 
 Definition t_streebog_uint512_st := Tstruct _streebog_uint512 noattr.
+(* ? Зачем нужна обёртка Tstruct, почему мы не получаем тип сразу с ней *)
 Definition streebog_uint512_arr_length := 8.
 
 Check _streebog_uint512.
@@ -43,9 +45,12 @@ Definition streebog_xor_spec :=
        tptr t_streebog_uint512_st]
        (* tptr - указатель на ... *)
     PROP(readable_share sh_r; writable_share sh_w;
+(* ? как указать для типа памяти , что оно одновременно writeable и readable *)
+(* ? Почему мы указываем тип памяти в разделе PROP, хотя она указана для памяти (как-будто все утверждения про память должны быть в разделе SEP) *)
          Zlength (block512_to_int64s x_content) = 8;
          Zlength (block512_to_int64s y_content) = 8;
          Zlength (block512_to_int64s z_content) = 8)
+(* ? Где в спецификации указывать ограничение на длину области памяти для структуры *)
     PARAMS (x; y; z) (* аргументы верифицируемой функции на C *)
     SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s x_content)) x;
