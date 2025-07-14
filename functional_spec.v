@@ -85,6 +85,7 @@ Definition bits_to_byte (bs: bits) : byte :=
     end
   ).
 
+(* Конвертирует 8 бит в 1 байт *)
 Fixpoint group_bits (bs: bits) : list bits :=
   match bs with
   | b0::b1::b2::b3::b4::b5::b6::b7::tail =>
