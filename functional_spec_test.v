@@ -31,12 +31,14 @@ Definition hex_string_to_bits (s : string) : bits :=
 
 Compute hex_string_to_bits "fe".
 
-(* Definition M1 : bits := (nat_to_bits (Z.to_nat 0x323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130)).
-Definition test_H512_result : Z := 486f64c1917879417fef082b3381a4e2110324f074654c38823a7b76f830ad00fa1fbae42b1285c0352f227524bc9ab16254288dd6863dccd5b9f54a1ad0541b.
-Compute  (Z.to_nat 0x0132313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313).
+(* А.1 Пример 1 *)
+Definition M1 : bits := hex_string_to_bits "323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130".
 
+(* А.1.1 Для функции хэширования с длиной хэш-кода 512 бит  *)
+Definition stage_3_first_line_result : block512 := bits_to_block512 (hex_string_to_bits "01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130").
+Example test_stage_3_first_line_result : bits_to_block512 ((repeat false (511 - (length M1))) ++ (true :: M1)) = stage_3_first_line_result.
+Proof. reflexivity. Qed.
 
-(* Compute (bits_to_block512 ((repeat false (511 - (length M1))) ++ (true :: M1)) = stage_3_first_line_result). *)
-
-Example test_H512 :  M1 = (bits_to_block512 (nat_to_bits (Z.to_nat test_H512_result))).
-Proof. reflexivity. Qed.0x *)
+Definition test_H512_result : block512 := bits_to_block512 (hex_string_to_bits "486f64c1917879417fef082b3381a4e2110324f074654c38823a7b76f830ad00fa1fbae42b1285c0352f227524bc9ab16254288dd6863dccd5b9f54a1ad0541b").
+Example test_H512 : (H512 M1) = test_H512_result.
+Proof. reflexivity. Qed.
