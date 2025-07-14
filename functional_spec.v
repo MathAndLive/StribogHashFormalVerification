@@ -97,6 +97,10 @@ Fixpoint group_bits (bs: bits) : list bits :=
 Definition bits_to_bytes (bs: bits) : list byte :=
   map bits_to_byte (group_bits bs).
 
+Definition bits_to_block512 (bs: bits) : block512 :=
+  bytes_to_block512 64 (bits_to_bytes bs).
+
+
 Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
   match perm with
   | [] => []
@@ -185,7 +189,7 @@ Admitted.
   
 Function stage_2 (h N Sigma : block512%Z) (M : bits) {measure length M} : block512 :=
   if lt_dec (length M) 512 then stage_3 h N Sigma M
-  else let m := bytes_to_block512 64 (bits_to_bytes (rev (firstn 512 (rev M)))) in
+  else let m := bits_to_block512 (rev (firstn 512 (rev M))) in
        let h := g N h m in
        let N := Vec512.repr (Vec512.unsigned N + 512) in
        let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
