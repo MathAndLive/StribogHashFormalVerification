@@ -68,6 +68,7 @@ Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
 Definition block512_to_int64s (b : block512) : list int64 :=
   Z_to_int64s 8 (Vec512.unsigned b).
 
+(* Конвертирует 8 бит в 1 байт *)
 Definition bits_to_byte (bs: bits) : byte :=
   Byte.repr (
     match bs with
@@ -84,7 +85,6 @@ Definition bits_to_byte (bs: bits) : byte :=
     end
   ).
 
-(* Конвертирует 8 бит в 1 байт *)
 Fixpoint group_bits (bs: bits) : list bits :=
   match bs with
   | b0::b1::b2::b3::b4::b5::b6::b7::tail =>
@@ -94,6 +94,10 @@ Fixpoint group_bits (bs: bits) : list bits :=
 
 Definition bits_to_bytes (bs: bits) : list byte :=
   map bits_to_byte (group_bits bs).
+
+Definition bits_to_block512 (bs: bits) : block512 :=
+  bytes_to_block512 64 (bits_to_bytes bs).
+
 
 Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
   match perm with
@@ -156,18 +160,15 @@ Definition p (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63
 Definition g(N h m: block512) : block512.
 Admitted.
     
-Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512.
-Admitted.
+Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512 :=
+  let m := bits_to_block512 ((repeat false (511 - (length M))) ++ (true :: M)) in
+  let h := g N h m in
+  let N := Vec512.repr (Vec512.unsigned N + (Z.of_nat (length M))) in
+  let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Z.of_nat (8 * (length (block512_to_bytes m))))) in 
+  let h := g (Vec512.repr 0) h N in
+  let h := g (Vec512.repr 0) h Sigma in
+  h.
 
-(* Конвертирует 8 бит в 1 байт *)
-
-(* Я хз зачем тут Z.of_nat но без него не получилось. Почему-то expected Z for n : nat *)
-(* Lemma firstn_shortens : forall (A : Type) (n : nat) (l : list A), 
-  Z.of_nat n < Z.of_nat (length l) -> Z.of_nat (length (firstn n l))< Z.of_nat (length l).
-Proof.
-  intros A n l H.
-  rewrite length_firstn.
-*)
   
 Function stage_2 (h N Sigma : block512%Z) (M : bits) {measure length M} : block512 :=
   if lt_dec (length M) 512 then stage_3 h N Sigma M
@@ -223,12 +224,12 @@ Definition A_mat : list Z :=
     0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
     ].
 
-Fixpoint list_dotproduct_Zbits (k : nat) (b : Z) (l : list Z) :=
+Fixpoint list_almost_dotproduct_Zbits (k : nat) (b : Z) (l : list Z) : Z := (* если b в виде битов (big-endian) это b_63 ... b_0, а l это [l0 ; ... ; l63] то эта функция выдаёт b_63 * l_0 XOR ... XOR b_0 * l_63 *)
   match l with
-    | nil => nil
-    | x :: xs => (if Z.testbit b (Z.of_nat k) then x else 0) :: (list_dotproduct_Zbits (S k) b xs)
+    | nil => 0
+    | x :: xs => Z.lxor (if Z.testbit b (Z.of_nat (63 - k)) then x else 0) (list_almost_dotproduct_Zbits (S k) b xs)
   end.
 
-Definition little_l (a : int64) : int64 := Int64.repr(fold_right Z.lxor 0 (list_dotproduct_Zbits 0 (Int64.unsigned a) A_mat)).
+Definition little_l (a : int64) : int64 := Int64.repr(list_almost_dotproduct_Zbits 0 (Int64.unsigned a) A_mat).
 
 Definition L_transform (b : block512) : block512 := int64s_to_block512 8 (map (fun x => little_l x) (block512_to_int64s b)).
