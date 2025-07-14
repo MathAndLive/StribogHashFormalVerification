@@ -23,30 +23,29 @@ Strategy 0 [Wordsize_512.wordsize].
 
 Notation block512 := Vec512.int.
 
-(* выделение первых n битов*)
+(* n младших битов числа b*)
 Definition LSB (n: nat) (b: Z) : Z :=
   Z_mod_two_p b n.
 
-
 (* разделение числа на k векторов длины m *)
-Fixpoint Z_to_chunk (m : nat) (k : nat) (z : Z) : list Z :=
+Fixpoint Z_to_chunks (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
   | O => nil
-  | S k' => (LSB m z) :: Z_to_chunk m k' (Z.shiftr z (Z.of_nat m))
+  | S k' => (LSB m z) :: Z_to_chunks m k' (Z.shiftr z (Z.of_nat m))
   end.
 
 (* разделение числа на k байтов *)
 Definition Z_to_bytes (k : nat) (z : Z) : list byte :=
-  map Byte.repr (Z_to_chunk 8 k z).
+  map Byte.repr (Z_to_chunks 8 k z).
 
 Definition block512_to_bytes (b : block512) : list byte :=
   Z_to_bytes 64 (Vec512.unsigned b).
 
 (* поиск i-ого элемента списка *)
-Definition nthi (il: list Z) (t: Z) :=
+Definition nthi_Z (il: list Z) (t: Z) :=
   nth (Z.to_nat t) il 0.
 
-Definition nthi_b (il: list byte) (t: Z) :=
+Definition nthi_bytes (il: list byte) (t: Z) :=
   nth (Z.to_nat t) il Byte.zero.
 
 Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
@@ -58,12 +57,12 @@ Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
     end
   end.
 
-    (* склеивание списка байтов в вектор *)
-Definition bytes_to_block512(k : nat) (il: list byte): block512 :=
-  Vec512.repr (bytes_to_Z k il).
+(* склеивание списка байтов в вектор *)
+Definition bytes_to_block512 (il: list byte): block512 :=
+  Vec512.repr (bytes_to_Z 64 il).
 
-  Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
-  map Int64.repr (Z_to_chunk 64 k z).
+Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
+  map Int64.repr (Z_to_chunks 64 k z).
 
 
 Definition block512_to_int64s (b : block512) : list int64 :=
@@ -132,11 +131,11 @@ Definition pi' : list byte := map Byte.repr
 
 (* применение функции pi *)
 Definition pi (il: list byte) :=
-  map (fun x => nthi_b pi' (Byte.unsigned x) ) il.
-    (* функция S *)
+  map (fun x => nthi_bytes pi' (Byte.unsigned x) ) il.
 
+(* функция S *)
 Definition s (v : block512) : block512 :=
-    bytes_to_block512 64 (pi (block512_to_bytes v)).
+    bytes_to_block512 (pi (block512_to_bytes v)).
 
   (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
@@ -172,7 +171,7 @@ Proof.
   
 Function stage_2 (h N Sigma : block512%Z) (M : bits) {measure length M} : block512 :=
   if lt_dec (length M) 512 then stage_3 h N Sigma M
-  else let m := bytes_to_block512 64 (bits_to_bytes (rev (firstn 512 (rev M)))) in
+  else let m := bytes_to_block512 (bits_to_bytes (rev (firstn 512 (rev M)))) in
        let h := g N h m in
        let N := Vec512.repr (Vec512.unsigned N + 512) in
        let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
