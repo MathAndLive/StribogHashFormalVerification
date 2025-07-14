@@ -34,26 +34,31 @@ Check _streebog_uint512.
 Print t_streebog_uint512_st.
 
 Definition streebog_xor_spec :=
-  DECLARE _streebog_xor
-  WITH sh : share, x : val, y : val, z : val,
+  DECLARE _streebog_xor (* название верифицируемой функции из сгенерированного файла .v*)
+  WITH sh_r : share, sh_w : share, x : val, y : val, z : val,
             left_block : block512, right_block : block512,
             res_block : block512
+            (* share = тип доступа к памяти: read/write *)
   PRE [tptr t_streebog_uint512_st, tptr t_streebog_uint512_st,
        tptr t_streebog_uint512_st]
-    PROP(readable_share sh)
+       (* tptr - указатель на ... *)
+    PROP(readable_share sh_r; writable_share sh_w;
+         Zlength (block512_to_int64s left_block) = 8;
+         Zlength (block512_to_int64s right_block) = 8;
+         Zlength (block512_to_int64s res_block) = 8)
     PARAMS (x; y; z)
-    SEP (field_at sh t_streebog_uint512_st (DOT _qword)
+    SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s left_block)) x;
-         field_at sh t_streebog_uint512_st (DOT _qword)
+         field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s right_block)) y;
-         field_at sh t_streebog_uint512_st (DOT _qword)
+         field_at sh_w t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s res_block)) z)
   POST [tvoid]
     PROP()
     RETURN()
-    SEP (field_at sh t_streebog_uint512_st (DOT _qword)
+    SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s left_block)) x;
-         field_at sh t_streebog_uint512_st (DOT _qword)
+         field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s right_block)) y;
-         field_at sh t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s (left_block xor right_block))) z).
+         field_at sh_w t_streebog_uint512_st (DOT _qword)
+            (map Vlong (block512_to_int64s (Vec512.xor left_block right_block))) z).
