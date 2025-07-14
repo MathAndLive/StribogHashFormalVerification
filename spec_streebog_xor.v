@@ -36,29 +36,29 @@ Print t_streebog_uint512_st.
 Definition streebog_xor_spec :=
   DECLARE _streebog_xor (* название верифицируемой функции из сгенерированного файла .v*)
   WITH sh_r : share, sh_w : share, x : val, y : val, z : val,
-            left_block : block512, right_block : block512,
-            res_block : block512
+            x_content : block512, y_content : block512,
+            z_content : block512
             (* share = тип доступа к памяти: read/write *)
   PRE [tptr t_streebog_uint512_st, tptr t_streebog_uint512_st,
        tptr t_streebog_uint512_st]
        (* tptr - указатель на ... *)
     PROP(readable_share sh_r; writable_share sh_w;
-         Zlength (block512_to_int64s left_block) = 8;
-         Zlength (block512_to_int64s right_block) = 8;
-         Zlength (block512_to_int64s res_block) = 8)
-    PARAMS (x; y; z)
+         Zlength (block512_to_int64s x_content) = 8;
+         Zlength (block512_to_int64s y_content) = 8;
+         Zlength (block512_to_int64s z_content) = 8)
+    PARAMS (x; y; z) (* аргументы верифицируемой функции на C *)
     SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s left_block)) x;
+            (map Vlong (block512_to_int64s x_content)) x;
          field_at sh_r t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s right_block)) y;
+            (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s res_block)) z)
+            (map Vlong (block512_to_int64s z_content)) z)
   POST [tvoid]
     PROP()
     RETURN()
     SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s left_block)) x;
+            (map Vlong (block512_to_int64s x_content)) x;
          field_at sh_r t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s right_block)) y;
+            (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s (Vec512.xor left_block right_block))) z).
+            (map Vlong (block512_to_int64s (Vec512.xor x_content y_content))) z).
