@@ -161,57 +161,6 @@ Definition tau : list Z :=
 
 Definition p (l : block512) : block512 := permute tau l.
 
-Definition g(N h m: block512) : block512.
-Admitted.
-
-Definition stage_1 (IV : block512) : block512 * block512 * block512 :=
-  let h := IV in
-  let N := Vec512.repr 0 in
-  let Sigma := Vec512.repr 0 in
-  (h, N, Sigma) .
-
-
-Function stage_2 (h N Sigma : block512) (M : bits) {measure length M} : block512 * block512 * block512 * bits :=
-  if lt_dec (length M) 512
-  then (h, N, Sigma, M)
-  else let m := bytes_to_block512 (bits_to_bytes (rev (firstn 512 (rev M)))) in
-       let h := g N h m in
-       let N := Vec512.repr (Vec512.unsigned N + 512) in
-       let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
-       let M := firstn ((length M) - 512) M in
-       stage_2 h N Sigma M.
-Proof.
-  intros. eapply Nat.le_lt_trans.
-  - apply firstn_le_length.
-  - lia.
-Defined.
-
-
-Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512 :=
-  let m := bits_to_block512 ((repeat false (511 - (length M))) ++ (true :: M)) in
-  let h := g N h m in
-  let N := Vec512.repr (Vec512.unsigned N + (Z.of_nat (length M))) in
-  let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Z.of_nat (8 * (length (block512_to_bytes m))))) in
-  let h := g (Vec512.repr 0) h N in
-  let h := g (Vec512.repr 0) h Sigma in
-  h.
-
-Definition H512 (M : bits) : block512 :=
-  let '(h, N, Sigma) := (stage_1 IV512) in
-  let '(h', N', Sigma', M') := (stage_2 h N Sigma M) in
-  stage_3 h' N' Sigma' M'.
-  
-Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
-  match k with
-  | O => Z.zero
-  | S k' => match il with
-    | [] => Z.zero
-    | x::xs =>(Int64.unsigned x) + (Z.shiftl (int64s_to_Z k' xs ) 64)
-    end
-  end.
-  
-Definition int64s_to_block512 (il: list int64): block512 :=
-  Vec512.repr (int64s_to_Z 8 il).
 
 Definition A : list int64 :=
   [ Int64.repr 0x8e20faa72ba0b470; Int64.repr 0x47107ddd9b505a38; Int64.repr 0xad08b0e0c3282d1c; Int64.repr 0xd8045870ef14980e; 
