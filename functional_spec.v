@@ -132,8 +132,9 @@ Definition s (v : block512) : block512 :=
 Definition IV512 : block512 := Vec512.repr 0.
 
 
-Definition permute (permutation_list : list Z) (l : list byte) : list byte :=
-  map (fun i => nthi_bytes l i)  permutation_list.
+Definition permute (permutation_list : list Z) (l : block512) : block512 :=
+  let bytes := block512_to_bytes l in
+    bytes_to_block512 (map (fun i => nthi_bytes bytes i)  permutation_list).
 
 Definition tau : list Z :=
   [0; 8; 16; 24; 32; 40; 48; 56;
@@ -145,7 +146,7 @@ Definition tau : list Z :=
    6; 14; 22; 30; 38; 46; 54; 62;
    7; 15; 23; 31; 39; 47; 55; 63].
 
-Definition p (l : list byte) : list byte := permute (rev tau) l.
+Definition p (l : block512) : block512 := permute (rev tau) l.
 
 Definition g(N h m: block512) : block512.
 Admitted.
