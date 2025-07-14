@@ -62,3 +62,5 @@ Definition streebog_xor_spec :=
             (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s (Vec512.xor x_content y_content))) z).
+
+
