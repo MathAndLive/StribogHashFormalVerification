@@ -99,6 +99,19 @@ Definition bits_to_block512 (bs: bits) : block512 :=
   bytes_to_block512 (bits_to_bytes bs).
 
 
+Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
+  match k with
+  | O => Z.zero
+  | S k' => match il with
+    | [] => Z.zero
+    | x::xs =>(Int64.unsigned x) + (Z.shiftl (int64s_to_Z k' xs ) 64)
+    end
+  end.
+  
+Definition int64s_to_block512 (il: list int64): block512 :=
+  Vec512.repr (int64s_to_Z 8 il).
+
+
 Definition pi' : list byte := map Byte.repr
     [
         252; 238; 221; 17; 207; 110; 49; 22; 251; 196; 250; 218; 35; 197; 4; 77;
@@ -226,3 +239,87 @@ Definition b_times_A (b : int64) : int64 :=
 (* функция линейного преобразования *)
 Definition l (b : block512) : block512 :=
   int64s_to_block512 (map (fun x => b_times_A x) (block512_to_int64s b)).
+
+Definition C : list Z :=
+  [
+    0xb1085bda1ecadae9ebcb2f81c0657c1f2f6a76432e45d016714eb88d7585c4fc4b7ce09192676901a2422a08a460d31505767436cc744d23dd806559f2a64507;
+    0x6fa3b58aa99d2f1a4fe39d460f70b5d7f3feea720a232b9861d55e0f16b501319ab5176b12d699585cb561c2db0aa7ca55dda21bd7cbcd56e679047021b19bb7;
+    0xf574dcac2bce2fc70a39fc286a3d843506f15e5f529c1f8bf2ea7514b1297b7bd3e20fe490359eb1c1c93a376062db09c2b6f443867adb31991e96f50aba0ab2;
+    0xef1fdfb3e81566d2f948e1a05d71e4dd488e857e335c3c7d9d721cad685e353fa9d72c82ed03d675d8b71333935203be3453eaa193e837f1220cbebc84e3d12e;
+    0x4bea6bacad4747999a3f410c6ca923637f151c1f1686104a359e35d7800fffbdbfcd1747253af5a3dfff00b723271a167a56a27ea9ea63f5601758fd7c6cfe57;
+    0xae4faeae1d3ad3d96fa4c33b7a3039c02d66c4f95142a46c187f9ab49af08ec6cffaa6b71c9ab7b40af21f66c2bec6b6bf71c57236904f35fa68407a46647d6e;
+    0xf4c70e16eeaac5ec51ac86febf240954399ec6c7e6bf87c9d3473e33197a93c90992abc52d822c3706476983284a05043517454ca23c4af38886564d3a14d493;
+    0x9b1f5b424d93c9a703e7aa020c6e41414eb7f8719c36de1e89b4443b4ddbc49af4892bcb929b069069d18d2bd1a5c42f36acc2355951a8d9a47f0dd4bf02e71e;
+    0x378f5a541631229b944c9ad8ec165fde3a7d3a1b258942243cd955b7e00d0984800a440bdbb2ceb17b2b8a9aa6079c540e38dc92cb1f2a607261445183235adb;
+    0xabbedea680056f52382ae548b2e4f3f38941e71cff8a78db1fffe18a1b3361039fe76702af69334b7a1e6c303b7652f43698fad1153bb6c374b4c7fb98459ced;
+    0x7bcd9ed0efc889fb3002c6cd635afe94d8fa6bbbebab076120018021148466798a1d71efea48b9caefbacd1d7d476e98dea2594ac06fd85d6bcaa4cd81f32d1b;
+    0x378ee767f11631bad21380b00449b17acda43c32bcdf1d77f82012d430219f9b5d80ef9d1891cc86e71da4aa88e12852faf417d5d9b21b9948bc924af11bd720
+  ].
+
+Definition LPSX (block1 block2: block512): block512 := l (p (s (Vec512.xor block1 block2))).
+Definition LPS (x : block512) : block512 := l (p (s x)).
+
+(* Генерация ключей *)
+Fixpoint generate_K (h N: block512) (i : nat) : block512 :=
+  match i with
+  | O => LPSX h N (* todo с 1 в ГОСТ *)
+  | S n => 
+      let prev_K := generate_K h N n in
+      let c_Z := nthi_Z C (Z.of_nat n) in
+      let c_block := Vec512.repr c_Z in
+      LPSX prev_K c_block
+  end.
+
+Fixpoint E (h N m : block512) (rounds : nat) : block512 :=
+  match rounds with
+  | O => m
+  | S n =>
+      let round_num := (12 - n + 1)%nat in
+      let Ki := generate_K h N round_num in
+      match round_num with
+      | 12%nat => Vec512.xor (E h N m n) Ki
+      | _      => LPSX Ki (E h N m n)
+      end
+  end.
+
+Definition g(N h m: block512) : block512 :=
+  let K := LPSX h N in 
+  let e := E h m K 12 in
+  Vec512.xor (Vec512.xor e h) m.
+
+
+Definition stage_1 (IV : block512) : block512 * block512 * block512 :=
+  let h := IV in
+  let N := Vec512.repr 0 in
+  let Sigma := Vec512.repr 0 in
+  (h, N, Sigma) .
+
+Function stage_2 (h N Sigma : block512) (M : bits) {measure length M} : block512 * block512 * block512 * bits :=
+  if lt_dec (length M) 512
+  then (h, N, Sigma, M)
+  else let m := bytes_to_block512 (bits_to_bytes (rev (firstn 512 (rev M)))) in
+       let h := g N h m in
+       let N := Vec512.repr (Vec512.unsigned N + 512) in
+       let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
+       let M := firstn ((length M) - 512) M in
+       stage_2 h N Sigma M.
+Proof.
+  intros. eapply Nat.le_lt_trans.
+  - apply firstn_le_length.
+  - lia.
+Defined.
+
+Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512 :=
+  let m := bits_to_block512 ((repeat false (511 - (length M))) ++ (true :: M)) in
+  let h := g N h m in
+  let N := Vec512.repr (Vec512.unsigned N + (Z.of_nat (length M))) in
+  let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Z.of_nat (8 * (length (block512_to_bytes m))))) in
+  let h := g (Vec512.repr 0) h N in
+  let h := g (Vec512.repr 0) h Sigma in
+  h.
+
+Definition H512 (M : bits) : block512 :=
+  let '(h, N, Sigma) := (stage_1 IV512) in
+  let '(h', N', Sigma', M') := (stage_2 h N Sigma M) in
+  stage_3 h' N' Sigma' M'.
+  
