@@ -42,11 +42,11 @@ Definition block512_to_bytes (b : block512) : list byte :=
   Z_to_bytes 64 (Vec512.unsigned b).
 
 (* поиск i-ого элемента списка *)
-Definition nthi_Z (il: list Z) (t: Z) :=
-  nth (Z.to_nat t) il 0.
+Definition nthi_Z (il: list Z) (t: Z) : Z :=
+  nth (Z.to_nat t) il default.
 
-Definition nthi_bytes (il: list byte) (t: Z) :=
-  nth (Z.to_nat t) il Byte.zero.
+Definition nthi_bytes (il: list byte) (t: Z) : byte :=
+  nth (Z.to_nat t) il default.
 
 Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
   match k with
@@ -72,7 +72,7 @@ Definition block512_to_int64s (b : block512) : list int64 :=
 Definition bits_to_byte (bs: bits) : byte :=
   Byte.repr (
     match bs with
-    | [b0; b1; b2; b3; b4; b5; b6; b7] =>
+    | b0 :: b1:: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: [] =>
         (if b7 then 128 else 0) +
         (if b6 then 64 else 0) +
         (if b5 then 32 else 0) +
@@ -81,7 +81,7 @@ Definition bits_to_byte (bs: bits) : byte :=
         (if b2 then 4 else 0) +
         (if b1 then 2 else 0) +
         (if b0 then 1 else 0)
-    | _ => 0
+    | _ => 0 (* TODO: сделать ошибку на длину вектора не равно 8 *)
     end
   ).
 
@@ -96,31 +96,17 @@ Definition bits_to_bytes (bs: bits) : list byte :=
   map bits_to_byte (group_bits bs).
 
 Definition bits_to_block512 (bs: bits) : block512 :=
-  bytes_to_block512 64 (bits_to_bytes bs).
+  bytes_to_block512 (bits_to_bytes bs).
 
 
-Fixpoint permute_a0toa63 (perm : list Z) (l : list byte) : list byte :=
-  match perm with
-  | [] => []
-  | i :: ps => (nth (Z.to_nat i) l default) :: (permute_a0toa63 ps l)
-  (*  АХ: сейчас для элемента i , который принимает значение от - до 255,
-      находится значение в матрицe perm с индексом i и подставляется на место элемента i.
-      Но судя по госту алгоритм другой:
-      элементы в списке нумеруются с 63 до 0 (0<=k<64), и на место элемента с номером k
-      становится элемент с номером (tau k)
-      Интуитивно можно сказать так: если разложить вектор l в виде матрицы 8*8,
-      то преобразование выглядит как транспонирование.
-  *)
-  end.
-  
 Definition pi' : list byte := map Byte.repr
     [
         252; 238; 221; 17; 207; 110; 49; 22; 251; 196; 250; 218; 35; 197; 4; 77;
-        233; 119; 240; 219; 147; 46;153; 186; 23; 54; 241;187; 20; 205; 95; 193;
+        233; 119; 240; 219; 147; 46; 153; 186; 23; 54; 241;187; 20; 205; 95; 193;
         249; 24; 101; 90; 226; 92; 239; 33; 129; 28; 60; 66; 139; 1; 142; 79;
         5; 132; 2; 174; 227; 106; 143; 160; 6; 11; 237; 152; 127; 212; 211; 31;
         235; 52; 44; 81; 234; 200; 72; 171; 242; 42; 104; 162; 253; 58; 206; 204;
-        181; 112; 14; 86; 8; 12; 118; 18; 191; 114; 19; 71;156; 183; 93; 135;
+        181; 112; 14; 86; 8; 12; 118; 18; 191; 114; 19; 71; 156; 183; 93; 135;
         21; 61; 150; 41; 16; 123; 154; 199; 243; 145; 120; 111; 157; 158; 178; 177;
         50; 117; 25; 61; 255; 53; 138; 126; 109; 84; 198; 128; 195; 189; 13; 87;
         223; 245; 36; 169; 62; 168; 67; 201; 215; 121; 214; 246; 124; 34; 185; 3;
@@ -141,11 +127,15 @@ Definition pi (il: list byte) :=
 Definition s (v : block512) : block512 :=
     bytes_to_block512 (pi (block512_to_bytes v)).
 
-  (* Инициализационный вектор для хэша 512 бит — все нули *)
+
+(* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
 
-(* АХ: судя по госту, эта функция называется tau *)
-Definition tau' : list Z :=
+
+Definition permute (permutation_list : list Z) (l : list byte) : list byte :=
+  map (fun i => nthi_bytes l i)  permutation_list.
+
+Definition tau : list Z :=
   [0; 8; 16; 24; 32; 40; 48; 56;
    1; 9; 17; 25; 33; 41; 49; 57;
    2; 10; 18; 26; 34; 42; 50; 58;
@@ -155,23 +145,21 @@ Definition tau' : list Z :=
    6; 14; 22; 30; 38; 46; 54; 62;
    7; 15; 23; 31; 39; 47; 55; 63].
 
-Definition p (perm : list Z) (l : list byte) : list byte := rev (permute_a0toa63 perm l).
+Definition p (l : list byte) : list byte := permute (rev tau) l.
 
 Definition g(N h m: block512) : block512.
 Admitted.
-    
-Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512 :=
-  let m := bits_to_block512 ((repeat false (511 - (length M))) ++ (true :: M)) in
-  let h := g N h m in
-  let N := Vec512.repr (Vec512.unsigned N + (Z.of_nat (length M))) in
-  let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Z.of_nat (8 * (length (block512_to_bytes m))))) in 
-  let h := g (Vec512.repr 0) h N in
-  let h := g (Vec512.repr 0) h Sigma in
-  h.
 
-  
-Function stage_2 (h N Sigma : block512%Z) (M : bits) {measure length M} : block512 :=
-  if lt_dec (length M) 512 then stage_3 h N Sigma M
+Definition stage_1 (IV : block512) : block512 * block512 * block512 :=
+  let h := IV in
+  let N := Vec512.repr 0 in
+  let Sigma := Vec512.repr 0 in
+  (h, N, Sigma) .
+
+
+Function stage_2 (h N Sigma : block512) (M : bits) {measure length M} : block512 * block512 * block512 * bits :=
+  if lt_dec (length M) 512
+  then (h, N, Sigma, M)
   else let m := bytes_to_block512 (bits_to_bytes (rev (firstn 512 (rev M)))) in
        let h := g N h m in
        let N := Vec512.repr (Vec512.unsigned N + 512) in
@@ -184,14 +172,20 @@ Proof.
   - lia.
 Defined.
 
-Definition stage_1 (IV : block512) (M : bits) : block512 :=
-  let h := IV in
-  let N := Vec512.repr 0 in
-  let Sigma := Vec512.repr 0 in
-  stage_2 h N Sigma M.
+
+Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512 :=
+  let m := bits_to_block512 ((repeat false (511 - (length M))) ++ (true :: M)) in
+  let h := g N h m in
+  let N := Vec512.repr (Vec512.unsigned N + (Z.of_nat (length M))) in
+  let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Z.of_nat (8 * (length (block512_to_bytes m))))) in
+  let h := g (Vec512.repr 0) h N in
+  let h := g (Vec512.repr 0) h Sigma in
+  h.
 
 Definition H512 (M : bits) : block512 :=
-  stage_1 IV512 M.
+  let '(h, N, Sigma) := (stage_1 IV512) in
+  let '(h', N', Sigma', M') := (stage_2 h N Sigma M) in
+  stage_3 h' N' Sigma' M'.
   
 Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
   match k with
@@ -202,10 +196,10 @@ Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
     end
   end.
   
-Definition int64s_to_block512 (k : nat) (il: list int64): block512 :=
-  Vec512.repr (int64s_to_Z k il).
+Definition int64s_to_block512 (il: list int64): block512 :=
+  Vec512.repr (int64s_to_Z 8 il).
 
-Definition A_mat : list Z := 
+Definition A : list Z :=
   [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e; 
     0x6c022c38f90a4c07; 0x3601161cf205268d; 0x1b8e0b0e798c13c8; 0x83478b07b2468764;
     0xa011d380818e8f40; 0x5086e740ce47c920; 0x2843fd2067adea10; 0x14aff010bdd87508;
@@ -224,12 +218,20 @@ Definition A_mat : list Z :=
     0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
     ].
 
-Fixpoint list_almost_dotproduct_Zbits (k : nat) (b : Z) (l : list Z) : Z := (* если b в виде битов (big-endian) это b_63 ... b_0, а l это [l0 ; ... ; l63] то эта функция выдаёт b_63 * l_0 XOR ... XOR b_0 * l_63 *)
+Fixpoint vec_times_mat (k : nat) (b : Z) (l : list Z) : Z :=
+(* если b в виде битов (big-endian) это b_63 ... b_0, а l это [l0 ; ... ; l63]
+то эта функция выдаёт b_63 * l_0 XOR ... XOR b_0 * l_63 *)
+(* TODO: переписать в виде свертки fold (используя аккумулятор для (текущий xor, k)) *)
   match l with
     | nil => 0
-    | x :: xs => Z.lxor (if Z.testbit b (Z.of_nat (63 - k)) then x else 0) (list_almost_dotproduct_Zbits (S k) b xs)
+    | x :: xs => Z.lxor (if Z.testbit b (Z.of_nat (63 - k)) then x else 0)
+                        (vec_times_mat (S k) b xs)
   end.
 
-Definition little_l (a : int64) : int64 := Int64.repr(list_almost_dotproduct_Zbits 0 (Int64.unsigned a) A_mat).
+(* TODO: объединить две соседний функции в одну *)
+Definition little_l (a : int64) : int64 :=
+  Int64.repr(vec_times_mat 0 (Int64.unsigned a) A).
 
-Definition L_transform (b : block512) : block512 := int64s_to_block512 8 (map (fun x => little_l x) (block512_to_int64s b)).
+(* функция линейного преобразования *)
+Definition l (b : block512) : block512 :=
+  int64s_to_block512 (map (fun x => little_l x) (block512_to_int64s b)).
