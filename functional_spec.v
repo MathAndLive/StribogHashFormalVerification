@@ -31,7 +31,7 @@ Definition LSB (n: nat) (b: Z) : Z :=
 Fixpoint Z_to_chunks (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
   | O => nil
-  | S k' => (LSB m z) :: Z_to_chunks m k' (Z.shiftr z (Z.of_nat m))
+  | S k' => Z_to_chunks m k' (Z.shiftr z (Z.of_nat m)) ++ [LSB m z]
   end.
 
 (* разделение числа на k байтов *)
@@ -146,7 +146,20 @@ Definition tau : list Z :=
    6; 14; 22; 30; 38; 46; 54; 62;
    7; 15; 23; 31; 39; 47; 55; 63].
 
-Definition p (l : block512) : block512 := permute tau l.
+Definition p (l : block512) : block512 := permute (rev tau) l.
+
+(* Notation const2 := (0x46433ed624df433e452f5e7d92452f5ed98937e4acd989375f14f117995f14f1C0b64bc266c0b64bbe2d092067be2d09ec4e7ab0e0ec4e7a2cfdea48eb2cfdea).
+
+
+
+Notation const := (0x4645d95fc0beec2c432f8914b62d4efd3e5e37f14b097aead67de417c220b0482492ac996667e0ebdf45d95fc0beec2c432f8914b62d4efd3e5e37f14b097aea).
+
+Compute const2.
+
+(* константа для функции g *)
+
+Compute Vec512.unsigned (p (Vec512.repr const)) ?= const2. *)
+
 
 Definition g(N h m: block512) : block512.
 Admitted.
