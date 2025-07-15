@@ -234,21 +234,14 @@ Fixpoint generate_keys_tailrec (acc : list block512) (n : nat) : list block512 :
 Definition generate_keys (K1 : block512) (n : nat) : list block512 :=
   List.rev (generate_keys_tailrec [K1] (n - 1)).
 
-Fixpoint E (keys: list block512)(m: block512): block512 :=
-  match keys with
-  | [] => m 
-  | [k_last] => Vec512.xor k_last m
-  | k :: ks => LPSX k (E ks m)
-  end.
-
-(* Другая версия с k_prev
-Fixpoint E' (h N m : block512) (c : list Z (* подается развернутый список*)) : block512 * block512 :=
-  match c with
-  | nil => (LPSX h N, m)
-  | x :: xs => let (k_prev, m') := E' h N m xs in
-               let k_new := LPSX k_prev (Vec512.repr x) in
-                (k_new, LPSX k_prev m')
-end. *)
+Definition E (keys: list block512) (m: block512) : block512 :=
+  if Nat.eqb (List.length keys) 13 then
+    let first_keys := firstn 12 keys in
+    let k13 := last keys IV512 in
+    Vec512.xor k13 (fold_left LPSX first_keys m)  
+  else
+    m 
+.
 
 Definition g_N (N h m : block512) : block512 :=
   let K1 := LPSX h N in
