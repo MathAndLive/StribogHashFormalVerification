@@ -12,11 +12,14 @@
  * any later version.
  */
 
-#include <crypto/internal/hash.h>
-#include <crypto/streebog.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/string.h>
+// замещены всякими define, typedef и прототипами в streebog.h
+//#include <crypto/internal/hash.h>
+//#include <crypto/streebog.h> 
+//#include <linux/kernel.h>
+//#include <linux/module.h>
+//#include <string.h>
+
+#include "streebog.h"
 
 static const struct streebog_uint512 buffer0 = { {
 	0, 0, 0, 0, 0, 0, 0, 0
@@ -981,7 +984,8 @@ static void streebog_stage3(struct streebog_state *ctx, const u8 *src,
 	union {
 		u8 buffer[STREEBOG_BLOCK_SIZE];
 		struct streebog_uint512 m;
-	} u = {};
+	//} u = {}; // новый синтаксис, не поддерживаемый VST
+	} u = { .buffer = { 0 } };
 
 	buf.qword[0] = cpu_to_le64(len << 3);
 	memcpy(u.buffer, src, len);
@@ -1023,52 +1027,3 @@ static int streebog_finup(struct shash_desc *desc, const u8 *src,
 	return 0;
 }
 
-static struct shash_alg algs[2] = { {
-	.digestsize	=	STREEBOG256_DIGEST_SIZE,
-	.init		=	streebog_init,
-	.update		=	streebog_update,
-	.finup		=	streebog_finup,
-	.descsize	=	sizeof(struct streebog_state),
-	.base		=	{
-		.cra_name	 =	"streebog256",
-		.cra_driver_name =	"streebog256-generic",
-		.cra_flags	 =	CRYPTO_AHASH_ALG_BLOCK_ONLY,
-		.cra_blocksize	 =	STREEBOG_BLOCK_SIZE,
-		.cra_module	 =	THIS_MODULE,
-	},
-}, {
-	.digestsize	=	STREEBOG512_DIGEST_SIZE,
-	.init		=	streebog_init,
-	.update		=	streebog_update,
-	.finup		=	streebog_finup,
-	.descsize	=	sizeof(struct streebog_state),
-	.base		=	{
-		.cra_name	 =	"streebog512",
-		.cra_driver_name =	"streebog512-generic",
-		.cra_flags	 =	CRYPTO_AHASH_ALG_BLOCK_ONLY,
-		.cra_blocksize	 =	STREEBOG_BLOCK_SIZE,
-		.cra_module	 =	THIS_MODULE,
-	}
-} };
-
-static int __init streebog_mod_init(void)
-{
-	return crypto_register_shashes(algs, ARRAY_SIZE(algs));
-}
-
-static void __exit streebog_mod_fini(void)
-{
-	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
-}
-
-module_init(streebog_mod_init);
-module_exit(streebog_mod_fini);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Vitaly Chikunov <vt@altlinux.org>");
-MODULE_DESCRIPTION("Streebog Hash Function");
-
-MODULE_ALIAS_CRYPTO("streebog256");
-MODULE_ALIAS_CRYPTO("streebog256-generic");
-MODULE_ALIAS_CRYPTO("streebog512");
-MODULE_ALIAS_CRYPTO("streebog512-generic");
