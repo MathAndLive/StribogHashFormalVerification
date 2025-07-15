@@ -1,5 +1,5 @@
 From VST.floyd Require Import proofauto library.
-Require Import streebog_add512.
+Require Import streebog_generic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
