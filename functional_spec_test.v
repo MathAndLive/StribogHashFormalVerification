@@ -35,15 +35,44 @@ Definition hex_string_to_bits (s : string) : bits :=
 Definition M1 : bits := hex_string_to_bits "323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130".
 
 (* А.1.1 Для функции хэширования с длиной хэш-кода 512 бит  *)
+Definition stage_3_first_line_result : block512 := bits_to_block512 (hex_string_to_bits "01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130").
+Example test_stage_3_first_line_result : bits_to_block512 ((repeat false (511 - (length M1))) ++ (true :: M1)) = stage_3_first_line_result.
+Proof. reflexivity. Qed.
+
+(* Definition test_H512_result : block512 := bits_to_block512 (hex_string_to_bits "00557be5e584fd52a449b16b0251d05d27f94ab76cbaa6da890b59d8ef1e159d").
+Example test_H512 : (H512 M1) = test_H512_result.
+Proof. reflexivity. Qed. *)
+
+  (*
+Program Fixpoint nat_to_bits (x : nat) {measure x} : bits :=
+  match x with
+  | O => [false]
+  | S O => [true]
+  |  S (S _) => (Nat.eqb (x mod 2) 1) :: nat_to_bits (x / 2)
+  end.
+Next Obligation.
+  intros.
+  simpl.
+Qed. *)
 
 Definition h := IV512.
 Definition N := Vec512.repr 0.
-(* После преобразования S: *)
-Compute (s (Vec512.xor h N)).
-Compute 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc.
+
+Definition h_xor_N := Vec512.xor h N.
+
+Definition s_h_xor_N := s h_xor_N.
+Compute Vec512.unsigned s_h_xor_N ?= 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc .
+
+Definition p_s_h_xor_N := p s_h_xor_N.
+Compute Vec512.unsigned s_h_xor_N ?= 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc .
+
+Definition l_p_s_h_xor_N := l p_s_h_xor_N.
+Compute Vec512.unsigned l_p_s_h_xor_N ?= 0xb383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574 .
+
+Definition k1 := l_p_s_h_xor_N.
+Definition m := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
+
+Definition xor_k1_m := Vec512.xor k1 (Vec512.repr m).
+Compute Vec512.unsigned xor_k1_m ?= 0xb2b1cd1ef7ec924286b7cf1cffe49c4c84b5c91afde694448abbcb18fbe0964682b3c516f9e2904080b1cd1ef7ec924286b7cf1cffe49c4c84b5c91afde69444 .
 
 
-Compute (H512 M1).
-
-Definition test_H512_result : block512 := bits_to_block512 (hex_string_to_bits "486f64c1917879417fef082b3381a4e2110324f074654c38823a7b76f830ad00fa1fbae42b1285c0352f227524bc9ab16254288dd6863dccd5b9f54a1ad0541b.").
-Compute test_H512_result.
