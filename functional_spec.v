@@ -72,28 +72,30 @@ Definition block512_to_int64s (b : block512) : list int64 :=
 (* с точки зрения здравого смысла на всех машинах данные должны быть длиной в 8 бит, но если каким-то чудом машина будет другой, то мы дополняем до 8 бит нулями *)
 Fixpoint bits_to_byte_rec (k : Z) (bs : bits) : byte :=
   match k with
-  | 8 => Byte.repr 0
+  | 0 => Byte.repr 0
   | _ => match bs with
          | nil => Byte.repr 0
-         | x :: xs => Byte.repr ((if x then 1 else 0) + 2 * Byte.unsigned (bits_to_byte_rec (k + 1) xs))
+         | x :: xs => Byte.repr ((if x then 1 else 0) + 2 * Byte.unsigned (bits_to_byte_rec (k - 1) xs))
          end
   end.
 
-Definition bits_to_byte (bs: bits) : byte := bits_to_byte_rec 0 bs.
+Definition bits_to_byte (bs: bits) : byte := bits_to_byte_rec 8 bs.
 
 Fixpoint group_bits (bs: bits) : list bits :=
   match bs with
   | b0::b1::b2::b3::b4::b5::b6::b7::tail =>
       [b0; b1; b2; b3; b4; b5; b6; b7] :: group_bits tail
-  | _ => []
+  | _ => [bs]
   end.
 
 Definition bits_to_bytes (bs: bits) : list byte :=
   map bits_to_byte (group_bits bs).
 
-Definition bits_to_block512 (bs: bits) : block512 :=
+Definition bits_to_block512_le (bs: bits) : block512 :=
   bytes_to_block512 (bits_to_bytes bs).
 
+Definition bits_to_block512_be (bs: bits) : block512 :=
+  bits_to_block512_le (rev bs).
 
 Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
   match k with
@@ -111,7 +113,7 @@ Definition int64s_to_block512 (il: list int64): block512 :=
 Definition pi' : list byte := map Byte.repr
     [
         252; 238; 221; 17; 207; 110; 49; 22; 251; 196; 250; 218; 35; 197; 4; 77;
-        233; 119; 240; 219; 147; 46; 153; 186; 23; 54; 241;187; 20; 205; 95; 193;
+        233; 119; 240; 219; 147; 46; 153; 186; 23; 54; 241; 187; 20; 205; 95; 193;
         249; 24; 101; 90; 226; 92; 239; 33; 129; 28; 60; 66; 139; 1; 142; 79;
         5; 132; 2; 174; 227; 106; 143; 160; 6; 11; 237; 152; 127; 212; 211; 31;
         235; 52; 44; 81; 234; 200; 72; 171; 242; 42; 104; 162; 253; 58; 206; 204;
@@ -123,12 +125,12 @@ Definition pi' : list byte := map Byte.repr
         167; 151; 96; 115; 30; 0; 98; 68; 26; 184; 56; 130; 100; 159; 38; 65;
         173; 69; 70; 146; 39; 94; 85; 47; 140; 163; 165; 125; 105; 213; 149; 59;
         7; 88; 179; 64; 134; 172; 29; 247; 48; 55; 107; 228; 136; 217; 231; 137;
-        225; 27; 131;73; 76; 63; 248; 254; 141;83; 170; 144; 202; 216; 133; 97;
+        225; 27; 131; 73; 76; 63; 248; 254; 141; 83; 170; 144; 202; 216; 133; 97;
         32; 113; 103; 164; 45; 43; 9; 91; 203; 155; 37; 208; 190; 229; 108; 82;
         89; 166; 116; 210; 230; 244; 180; 192; 209; 102; 175; 194; 57; 75; 99; 182
     ].
 
-(* применение функции pi *)
+    (* применение функции pi *)
 Definition pi (il: list byte) :=
   map (fun x => nthi_bytes pi' (Byte.unsigned x) ) il.
 
@@ -276,7 +278,7 @@ Proof.
 Defined.
 
 Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512 :=
-  let m := bits_to_block512 ((repeat false (511 - (length M))) ++ (true :: M)) in
+  let m := bits_to_block512_le ((repeat false (511 - (length M))) ++ (true :: M)) in
   let h := g_N N h m in
   let N := Vec512.repr (Vec512.unsigned N + (Z.of_nat (length M))) in
   let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Z.of_nat (8 * (length (block512_to_bytes m))))) in
