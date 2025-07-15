@@ -41,17 +41,20 @@ Definition stage_3_first_line_result : block512 := bits_to_block512 (hex_string_
 Example test_stage_3_first_line_result : bits_to_block512 ((repeat false (511 - (length M1))) ++ (true :: M1)) = stage_3_first_line_result.
 Proof. reflexivity. Qed.
 
-(* Definition test_H512_result : block512 := bits_to_block512 (hex_string_to_bits "00557be5e584fd52a449b16b0251d05d27f94ab76cbaa6da890b59d8ef1e159d").
+Definition test_H512_result : block512 := bits_to_block512 (hex_string_to_bits "00557be5e584fd52a449b16b0251d05d27f94ab76cbaa6da890b59d8ef1e159d").
 Example test_H512 : (H512 M1) = test_H512_result.
-Proof. reflexivity. Qed. *)
+Proof. reflexivity. Qed.
 
-Program Fixpoint nat_to_bits (x : nat) {measure x} : bits :=
+(* Program Fixpoint nat_to_bits (x : nat) {measure x} : bits :=
   match x with
   | O => [false]
   | S O => [true]
   |  S (S _) => (Nat.eqb (x mod 2) 1) :: nat_to_bits (x / 2)
   end.
 Next Obligation.
-  intros.
   simpl.
-Qed.
+  destruct Nat.divmod.
+  destruct fst.
+  - lia.
+  -
+Qed. *)
