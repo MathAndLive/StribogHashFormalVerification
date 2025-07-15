@@ -205,32 +205,43 @@ Definition C : list Z :=
     0x378ee767f11631bad21380b00449b17acda43c32bcdf1d77f82012d430219f9b5d80ef9d1891cc86e71da4aa88e12852faf417d5d9b21b9948bc924af11bd720
   ].
 
-Definition LPSX (block1 block2: block512): block512 := l (p (s (Vec512.xor block1 block2))).
+Definition LPSX (block1 block2 : block512): block512 := l (p (s (Vec512.xor block1 block2))).
 Definition LPS (x : block512) : block512 := l (p (s x)).
 
-(* Генерация ключей *)
-Fixpoint generate_K (h N: block512) (i : nat) : block512 :=
-  match i with
-  | O => LPSX h N (* todo с 1 в ГОСТ *)
-  | S n => 
-      let prev_K := generate_K h N n in
-      let c_Z := nthi_Z C (Z.of_nat n) in
-      let c_block := Vec512.repr c_Z in
-      LPSX prev_K c_block
+Fixpoint generate_keys (K : block512) (n : nat) : list block512 :=
+  match n with
+  | O => []
+  | S O => [K]
+  | S (S i) =>
+      let prev := generate_keys K i in
+      let Ki_1 := last prev K in
+      let Ci := Vec512.repr (nthi_Z C (Z.of_nat i)) in
+      prev ++ [LPSX Ki_1 Ci]
   end.
 
-Fixpoint E (h N m : block512) (rounds : nat) : block512 :=
-  match rounds with
-  | O => m
-  | S n =>
-      let round_num := (12 - n + 1)%nat in
-      let Ki := generate_K h N round_num in
-      match round_num with
-      | 12%nat => Vec512.xor (E h N m n) Ki
-      | _      => LPSX Ki (E h N m n)
+(* Оптимизированная версия для генерации ключей, которая запоминает предыдущие вычисленные значения *)
+Fixpoint generate_keys_tailrec (acc : list block512) (n : nat) : list block512 :=
+  match n with
+  | O => acc
+  | S i =>
+      match acc with
+      | [] => generate_keys_tailrec acc i 
+      | k_prev :: _ =>
+          let Ci := Vec512.repr (nthi_Z C (Z.of_nat (List.length acc))) in
+          let k_new := LPSX k_prev Ci in
+          generate_keys_tailrec (k_new :: acc) i
       end
   end.
 
+Definition generate_keys' (K1 : block512) (n : nat) : list block512 :=
+  List.rev (generate_keys_tailrec [K1] (n - 1)).
+
+Fixpoint E (keys: list block512)(m: block512): block512 :=
+  match keys with
+  | [] => m 
+  | [k_last] => Vec512.xor k_last m
+  | k :: ks => LPSX k (E ks m)
+  end.
 
 (* Другая версия с k_prev
 Fixpoint E' (h N m : block512) (c : list Z (* подается развернутый список*)) : block512 * block512 :=
@@ -241,9 +252,10 @@ Fixpoint E' (h N m : block512) (c : list Z (* подается разверну�
                 (k_new, LPSX k_prev m')
 end. *)
 
-Definition g(N h m: block512) : block512 :=
-  let K := LPSX h N in 
-  let e := E h m K 12 in
+Definition g_N (N h m : block512) : block512 :=
+  let K1 := LPSX h N in
+  let keys := generate_keys K1 13 in
+  let e := E keys m in
   Vec512.xor (Vec512.xor e h) m.
 
 
