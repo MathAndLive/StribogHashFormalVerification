@@ -116,7 +116,7 @@ Definition pi' : list byte := map Byte.repr
         5; 132; 2; 174; 227; 106; 143; 160; 6; 11; 237; 152; 127; 212; 211; 31;
         235; 52; 44; 81; 234; 200; 72; 171; 242; 42; 104; 162; 253; 58; 206; 204;
         181; 112; 14; 86; 8; 12; 118; 18; 191; 114; 19; 71; 156; 183; 93; 135;
-        21; 61; 150; 41; 16; 123; 154; 199; 243; 145; 120; 111; 157; 158; 178; 177;
+        21; 161; 150; 41; 16; 123; 154; 199; 243; 145; 120; 111; 157; 158; 178; 177;
         50; 117; 25; 61; 255; 53; 138; 126; 109; 84; 198; 128; 195; 189; 13; 87;
         223; 245; 36; 169; 62; 168; 67; 201; 215; 121; 214; 246; 124; 34; 185; 3;
         224; 15; 236; 222; 122; 148; 176; 188; 220; 232; 40; 80; 78; 51; 10; 74;
@@ -187,23 +187,23 @@ Definition l (b : block512) : block512 :=
 
 Definition C : list Z :=
   [
-    0xb1085bda1ecadae9ebcb2f81c0657c1f2f6a76432e45d016714eb88d7585c4fc4b7ce09192676901a2422a08a460d31505767436cc744d23dd806559f2a64507;
-    0x6fa3b58aa99d2f1a4fe39d460f70b5d7f3feea720a232b9861d55e0f16b501319ab5176b12d699585cb561c2db0aa7ca55dda21bd7cbcd56e679047021b19bb7;
-    0xf574dcac2bce2fc70a39fc286a3d843506f15e5f529c1f8bf2ea7514b1297b7bd3e20fe490359eb1c1c93a376062db09c2b6f443867adb31991e96f50aba0ab2;
-    0xef1fdfb3e81566d2f948e1a05d71e4dd488e857e335c3c7d9d721cad685e353fa9d72c82ed03d675d8b71333935203be3453eaa193e837f1220cbebc84e3d12e;
-    0x4bea6bacad4747999a3f410c6ca923637f151c1f1686104a359e35d7800fffbdbfcd1747253af5a3dfff00b723271a167a56a27ea9ea63f5601758fd7c6cfe57;
-    0xae4faeae1d3ad3d96fa4c33b7a3039c02d66c4f95142a46c187f9ab49af08ec6cffaa6b71c9ab7b40af21f66c2bec6b6bf71c57236904f35fa68407a46647d6e;
-    0xf4c70e16eeaac5ec51ac86febf240954399ec6c7e6bf87c9d3473e33197a93c90992abc52d822c3706476983284a05043517454ca23c4af38886564d3a14d493;
-    0x9b1f5b424d93c9a703e7aa020c6e41414eb7f8719c36de1e89b4443b4ddbc49af4892bcb929b069069d18d2bd1a5c42f36acc2355951a8d9a47f0dd4bf02e71e;
-    0x378f5a541631229b944c9ad8ec165fde3a7d3a1b258942243cd955b7e00d0984800a440bdbb2ceb17b2b8a9aa6079c540e38dc92cb1f2a607261445183235adb;
-    0xabbedea680056f52382ae548b2e4f3f38941e71cff8a78db1fffe18a1b3361039fe76702af69334b7a1e6c303b7652f43698fad1153bb6c374b4c7fb98459ced;
-    0x7bcd9ed0efc889fb3002c6cd635afe94d8fa6bbbebab076120018021148466798a1d71efea48b9caefbacd1d7d476e98dea2594ac06fd85d6bcaa4cd81f32d1b;
+    0xb1085bda1ecadae9ebcb2f81c0657c1f2f6a76432e45d016714eb88d7585c4fc4b7ce09192676901a2422a08a460d31505767436cc744d23dd806559f2a64507; 
+    0x6fa3b58aa99d2f1a4fe39d460f70b5d7f3feea720a232b9861d55e0f16b501319ab5176b12d699585cb561c2db0aa7ca55dda21bd7cbcd56e679047021b19bb7; 
+    0xf574dcac2bce2fc70a39fc286a3d843506f15e5f529c1f8bf2ea7514b1297b7bd3e20fe490359eb1c1c93a376062db09c2b6f443867adb31991e96f50aba0ab2; 
+    0xef1fdfb3e81566d2f948e1a05d71e4dd488e857e335c3c7d9d721cad685e353fa9d72c82ed03d675d8b71333935203be3453eaa193e837f1220cbebc84e3d12e; 
+    0x4bea6bacad4747999a3f410c6ca923637f151c1f1686104a359e35d7800fffbdbfcd1747253af5a3dfff00b723271a167a56a27ea9ea63f5601758fd7c6cfe57; 
+    0xae4faeae1d3ad3d96fa4c33b7a3039c02d66c4f95142a46c187f9ab49af08ec6cffaa6b71c9ab7b40af21f66c2bec6b6bf71c57236904f35fa68407a46647d6e; 
+    0xf4c70e16eeaac5ec51ac86febf240954399ec6c7e6bf87c9d3473e33197a93c90992abc52d822c3706476983284a05043517454ca23c4af38886564d3a14d493; 
+    0x9b1f5b424d93c9a703e7aa020c6e41414eb7f8719c36de1e89b4443b4ddbc49af4892bcb929b069069d18d2bd1a5c42f36acc2355951a8d9a47f0dd4bf02e71e; 
+    0x378f5a541631229b944c9ad8ec165fde3a7d3a1b258942243cd955b7e00d0984800a440bdbb2ceb17b2b8a9aa6079c540e38dc92cb1f2a607261445183235adb; 
+    0xabbedea680056f52382ae548b2e4f3f38941e71cff8a78db1fffe18a1b3361039fe76702af69334b7a1e6c303b7652f43698fad1153bb6c374b4c7fb98459ced; 
+    0x7bcd9ed0efc889fb3002c6cd635afe94d8fa6bbbebab076120018021148466798a1d71efea48b9caefbacd1d7d476e98dea2594ac06fd85d6bcaa4cd81f32d1b; 
     0x378ee767f11631bad21380b00449b17acda43c32bcdf1d77f82012d430219f9b5d80ef9d1891cc86e71da4aa88e12852faf417d5d9b21b9948bc924af11bd720
   ].
 
 Definition LPSX (block1 block2 : block512): block512 := l (p (s (Vec512.xor block1 block2))).
 
-Fixpoint generate_keys (K : block512) (n : nat) : list block512 :=
+(* Fixpoint generate_keys (K : block512) (n : nat) : list block512 :=
   match n with
   | O => []
   | S O => [K]
@@ -212,7 +212,7 @@ Fixpoint generate_keys (K : block512) (n : nat) : list block512 :=
       let Ki_1 := last prev K in
       let Ci := Vec512.repr (nthi_Z C (Z.of_nat i)) in
       prev ++ [LPSX Ki_1 Ci]
-  end.
+  end. *)
 
 (* Оптимизированная версия для генерации ключей, которая запоминает предыдущие вычисленные значения *)
 Fixpoint generate_keys_tailrec (acc : list block512) (n : nat) : list block512 :=
@@ -220,15 +220,16 @@ Fixpoint generate_keys_tailrec (acc : list block512) (n : nat) : list block512 :
   | O => acc
   | S i =>
       match acc with
-      | [] => generate_keys_tailrec acc i 
+      | [] => acc  (* generate_keys_tailrec acc i  *)
       | k_prev :: _ =>
-          let Ci := Vec512.repr (nthi_Z C (Z.of_nat (List.length acc))) in
-          let k_new := LPSX k_prev Ci in
+          let index := (List.length acc)%nat in
+          let Ci_1 := Vec512.repr (nthi_Z C (Z.of_nat index - 1)) in (* index - 1, т.к. нумерация массива C с 0 *)
+          let k_new := LPSX k_prev Ci_1 in  
           generate_keys_tailrec (k_new :: acc) i
       end
   end.
 
-Definition generate_keys' (K1 : block512) (n : nat) : list block512 :=
+Definition generate_keys (K1 : block512) (n : nat) : list block512 :=
   List.rev (generate_keys_tailrec [K1] (n - 1)).
 
 Fixpoint E (keys: list block512)(m: block512): block512 :=
