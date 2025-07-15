@@ -63,10 +63,13 @@ Module Example1.
   Definition l_p_s_xor_k1_m := l p_s_xor_k1_m.
   Compute Vec512.unsigned l_p_s_xor_k1_m ?= 0xe60059d4d8e0758024c73f6f3183653f56579189602ae4c21e7953ebc0e212a0ce78a8df475c2fd4fc43fc4b71c01e35be465fb20dad2cf690cdf65028121bb9.
   
-  Definition xor_K1_C1 := Vec512.xor K1 (Vec512.repr (hd 0 C)).
+  Definition C1 := Vec512.repr (hd 0 C).
+
+  Definition xor_K1_C1 := Vec512.xor K1 C1.
   Compute Vec512.unsigned xor_K1_C1 ?= 0x028ba7f4d01e7f9d5848d3af0eb1d96b9ce98a6de0917562c2cd44a3bb516188f8ff1cbf5cb3cc7511c1d6266ab47661b6f5881802a0e8576e0399773c72e073.
 
   Definition s_xor_K1_C1 := s xor_K1_C1.
-  Compute s_xor_K1_C1.
+  Compute s_xor_K1_C1.                                                                              (* | *)
+  Compute Vec512.unsigned s_xor_K1_C1.  (* ddf644e6e15f5733bff249410445536f4e9bd69e200f3596b3d9ea737d703dd7d1b6143b9c9288357758f8ef78278a3d55f4d717dda7cb12b211e87e7f19203d*)
   Compute Vec512.unsigned s_xor_K1_C1 ?= 0xddf644e6e15f5733bff249410445536f4e9bd69e200f3596b3d9ea737d70a1d7d1b6143b9c9288357758f8ef78278aa155f4d717dda7cb12b211e87e7f19203d.
 End Example1.
