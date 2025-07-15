@@ -152,23 +152,24 @@ Definition keys_result := map Vec512.repr [
 
 End test_generate_keys.
 
-(* Module test_E.
+Module test_E.
   Definition N : block512 := IV512.
   Definition h : block512 := IV512.
-  Definition m : Z := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
+  Definition m : Z := 323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
 
-  Definition test_result := 0xfc221dc8b814fc27a4de079d10097600209e5375776898961f70bded0647bd8f1664cfa8bb8d8ff1e0df3e621568b66aa075064b0e81cce132c8d1475809ebd2.  Definition K1 := LPSX h N.
+  Definition test_result := 0xfc221dc8b814fc27a4de079d10097600209e5375776898961f70bded0647bd8f1664cfa8bb8d8ff1e0df3e621568b66aa075064b0e81cce132c8d1475809ebd2.  
+  Definition K1 := LPSX h N.
 
   Definition keys := generate_keys K1 13.
-  Definition e_result := E keys (z_to_block512 m).
+  Definition e_result := E keys (Vec512.repr m).
 
-  (* Example test_E :
-    e_result = z_to_block512 test_result.
+   (* Example test_E :
+    e_result = Vec512.repr test_result.
   Proof.
       reflexivity.
-  Qed. *)
+  Qed.  *)
 
-  Compute z_to_block512 test_result.
+  Compute Vec512.repr test_result.
   Compute e_result.
 
-End test_E. *)
+End test_E. 

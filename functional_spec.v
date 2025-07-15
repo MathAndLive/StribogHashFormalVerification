@@ -203,7 +203,7 @@ Definition C : list Z :=
 
 Definition LPSX (block1 block2 : block512): block512 := l (p (s (Vec512.xor block1 block2))).
 
-(* Fixpoint generate_keys (K : block512) (n : nat) : list block512 :=
+(* Fixpoint generate_keys' (K : block512) (n : nat) : list block512 :=
   match n with
   | O => []
   | S O => [K]
