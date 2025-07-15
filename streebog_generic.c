@@ -21,15 +21,15 @@
 
 #include "streebog.h"
 
-static const struct streebog_uint512 buffer0 = { {
+const struct streebog_uint512 buffer0 = { {
 	0, 0, 0, 0, 0, 0, 0, 0
 } };
 
-static const struct streebog_uint512 buffer512 = { {
+const struct streebog_uint512 buffer512 = { {
 	cpu_to_le64(0x200), 0, 0, 0, 0, 0, 0, 0
 } };
 
-static const struct streebog_uint512 C[12] = {
+const struct streebog_uint512 C[12] = {
 	{ {
 		 cpu_to_le64(0xdd806559f2a64507ULL),
 		 cpu_to_le64(0x05767436cc744d23ULL),
@@ -152,7 +152,7 @@ static const struct streebog_uint512 C[12] = {
 	 } }
 };
 
-static const unsigned long long Ax[8][256] = {
+const unsigned long long Ax[8][256] = {
 	{
 	0xd01f715b5c7ef8e6ULL, 0x16fa240980778325ULL, 0xa8a42e857ee049c8ULL,
 	0x6ac1068fa186465bULL, 0x6e417bd7a2e9320bULL, 0x665c8167a437daabULL,
@@ -852,7 +852,7 @@ static const unsigned long long Ax[8][256] = {
 	}
 }; /* Ax */
 
-static void streebog_xor(const struct streebog_uint512 *x,
+void streebog_xor(const struct streebog_uint512 *x,
 			 const struct streebog_uint512 *y,
 			 struct streebog_uint512 *z)
 {
@@ -866,7 +866,7 @@ static void streebog_xor(const struct streebog_uint512 *x,
 	z->qword[7] = x->qword[7] ^ y->qword[7];
 }
 
-static void streebog_xlps(const struct streebog_uint512 *x,
+void streebog_xlps(const struct streebog_uint512 *x,
 			  const struct streebog_uint512 *y,
 			  struct streebog_uint512 *data)
 {
@@ -902,14 +902,14 @@ static void streebog_xlps(const struct streebog_uint512 *x,
 	}
 }
 
-static void streebog_round(int i, struct streebog_uint512 *Ki,
+void streebog_round(int i, struct streebog_uint512 *Ki,
 			   struct streebog_uint512 *data)
 {
 	streebog_xlps(Ki, &C[i], Ki);
 	streebog_xlps(Ki, data, data);
 }
 
-static int streebog_init(struct shash_desc *desc)
+int streebog_init(struct shash_desc *desc)
 {
 	struct streebog_state *ctx = shash_desc_ctx(desc);
 	unsigned int digest_size = crypto_shash_digestsize(desc->tfm);
@@ -923,7 +923,7 @@ static int streebog_init(struct shash_desc *desc)
 	return 0;
 }
 
-static void streebog_add512(const struct streebog_uint512 *x,
+void streebog_add512(const struct streebog_uint512 *x,
 			    const struct streebog_uint512 *y,
 			    struct streebog_uint512 *r)
 {
@@ -941,7 +941,7 @@ static void streebog_add512(const struct streebog_uint512 *x,
 	}
 }
 
-static void streebog_g(struct streebog_uint512 *h,
+void streebog_g(struct streebog_uint512 *h,
 		       const struct streebog_uint512 *N,
 		       const struct streebog_uint512 *m)
 {
@@ -965,7 +965,7 @@ static void streebog_g(struct streebog_uint512 *h,
 	streebog_xor(&data, m, h);
 }
 
-static void streebog_stage2(struct streebog_state *ctx, const u8 *data)
+void streebog_stage2(struct streebog_state *ctx, const u8 *data)
 {
 	struct streebog_uint512 m;
 
@@ -977,7 +977,7 @@ static void streebog_stage2(struct streebog_state *ctx, const u8 *data)
 	streebog_add512(&ctx->Sigma, &m, &ctx->Sigma);
 }
 
-static void streebog_stage3(struct streebog_state *ctx, const u8 *src,
+void streebog_stage3(struct streebog_state *ctx, const u8 *src,
 			    unsigned int len)
 {
 	struct streebog_uint512 buf = { { 0 } };
@@ -1000,7 +1000,7 @@ static void streebog_stage3(struct streebog_state *ctx, const u8 *src,
 	memcpy(&ctx->hash, &ctx->h, sizeof(struct streebog_uint512));
 }
 
-static int streebog_update(struct shash_desc *desc, const u8 *data,
+int streebog_update(struct shash_desc *desc, const u8 *data,
 			   unsigned int len)
 {
 	struct streebog_state *ctx = shash_desc_ctx(desc);
@@ -1014,7 +1014,7 @@ static int streebog_update(struct shash_desc *desc, const u8 *data,
 	return len;
 }
 
-static int streebog_finup(struct shash_desc *desc, const u8 *src,
+int streebog_finup(struct shash_desc *desc, const u8 *src,
 			  unsigned int len, u8 *digest)
 {
 	struct streebog_state *ctx = shash_desc_ctx(desc);
@@ -1026,4 +1026,3 @@ static int streebog_finup(struct shash_desc *desc, const u8 *src,
 		memcpy(digest, &ctx->hash.qword[0], STREEBOG512_DIGEST_SIZE);
 	return 0;
 }
-

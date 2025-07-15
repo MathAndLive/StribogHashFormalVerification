@@ -1,5 +1,5 @@
 From VST.floyd Require Import proofauto library.
-Require Import streebog_xor.
+Require Import streebog_generic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -62,3 +62,41 @@ Definition streebog_xor_spec :=
             (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s (Vec512.xor x_content y_content))) z).
+
+Lemma xor_eq : forall (x y : list Int64.int) (x_content y_content : block512),
+  forall i : Z, 0 <= i < 8 ->
+    Int64.xor (Znth i x) (Znth i y) =
+      Znth i (block512_to_int64s (Vec512.xor x_content y_content)).
+Proof.
+  intros x y x_content y_content i H.
+  (* unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks. unfold LSB. *)
+  induction i.
+  - unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks.
+Admitted.
+
+Lemma body_sumarray :
+  semax_body Vprog [] f_streebog_xor streebog_xor_spec.
+Proof.
+  start_function.
+  assert_PROP (Zlength (block512_to_int64s x_content) = 8). {
+    entailer!.
+  }
+  forward.
+  assert_PROP (Zlength (block512_to_int64s y_content) = 8). {
+    entailer!.
+  }
+  forward.
+  assert_PROP (Zlength (block512_to_int64s z_content) = 8). {
+    entailer!.
+  }
+  do 22 forward.
+  entailer!.
+  unfold block512_to_int64s.
+  (* unfold block512_to_int64s. *)
+  unfold Z_to_int64s.
+  (* unfold Z_to_int64s. *)
+  unfold Z_to_chunks.
+  apply xor_eq.
+  (* unfold Z_to_chunks. *)
+  simpl.
+  unfold LSB.
