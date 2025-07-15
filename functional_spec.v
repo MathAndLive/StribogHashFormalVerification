@@ -232,3 +232,5 @@ Definition b_times_A (b : int64) : int64 :=
 (* функция линейного преобразования *)
 Definition l (b : block512) : block512 :=
   int64s_to_block512 (map (fun x => b_times_A x) (block512_to_int64s b)).
+
+Definition LPSX (block1 block2: block512): block512 := l (p (s (Vec512.xor block1 block2))).

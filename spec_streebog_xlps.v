@@ -31,14 +31,15 @@ Definition tuint512 := Tstruct _streebog_uint512 noattr.
 
 
 Definition streebog_xlps_spec :=
-  DECLARE _streebog_xlps (* название верифицируемой функции из сгенерированного файла .v*)
+  DECLARE _streebog_xlps
   WITH   sh_r : share, sh_w : share,
          x : val, y : val, z : val,
          x_content : block512, y_content : block512, z_content : block512
   PRE [tptr tuint512, tptr tuint512, tptr tuint512]
-       (* tptr - указатель на ... *)
-    PROP(readable_share sh_r; writable_share sh_w)
-    PARAMS (x; y; z) (* аргументы верифицируемой функции на C *)
+    PROP(readable_share sh_r; writable_share sh_w;
+         Zlength (block512_to_int64s x_content) = 8;
+         Zlength (block512_to_int64s y_content) = 8)
+    PARAMS (x; y; z)
     SEP (field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x;
          field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w tuint512 (DOT _qword) (map Vlong (block512_to_int64s z_content)) z)
@@ -48,4 +49,30 @@ Definition streebog_xlps_spec :=
     SEP (field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x;
          field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w tuint512 (DOT _qword)
-           (map Vlong (block512_to_int64s (Vec512.xor x_content y_content))) z).
+           (map Vlong (block512_to_int64s (LPSX x_content y_content))) z).
+
+Lemma body_streebog_xlps :
+  semax_body Vprog [] f_streebog_xlps streebog_xlps_spec.
+Proof.
+  start_function.
+
+  forward. forward. forward. (* утверждения, что в массивах xy_content есть индекс 0 *)
+  forward. forward. forward. (* утверждения, что в массивах xy_content есть индекс 1 *)
+  forward. forward. forward. (* утверждения, что в массивах xy_content есть индекс 2 *)
+  forward. forward. forward. (* утверждения, что в массивах xy_content есть индекс 3 *)
+  forward. forward. forward. (* утверждения, что в массивах xy_content есть индекс 4 *)
+  forward. forward. forward. (* утверждения, что в массивах xy_content есть индекс 5 *)
+  forward. forward. forward. (* утверждения, что в массивах xy_content есть индекс 6 *)
+  forward. forward. forward. (* утверждения, что в массивах xy_content есть индекс 7 *)
+
+    (* forward_while
+    (EX i,
+      PROP (0 <= i <= 7)
+     *)
+  forward.
+  assert (0 <= 0 < Zlength (block512_to_int64s x_content))
+    by (rewrite (Zlength (field)); simpl; lia).
+  forward.
+  (* assert_PROP (Zlength (block512_to_int64s x_content) = 8). *)
+
+Qed.
