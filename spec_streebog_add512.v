@@ -48,14 +48,14 @@ Definition streebog_add512_spec :=
     PROP(readable_share sh_r; writable_share sh_w;
          Zlength (block512_to_int64s x_content) = 8;
          Zlength (block512_to_int64s y_content) = 8;
-         Zlength (block512_to_int64s z_content) = 8)
-    PARAMS (x; y; z) (* аргументы верифицируемой функции на C *)
+         Zlength (block512_to_int64s r_content) = 8)
+    PARAMS (x; y; r) (* аргументы верифицируемой функции на C *)
     SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s x_content)) x;
          field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s z_content)) z)
+            (map Vlong (block512_to_int64s r_content)) r)
   POST [tvoid]
     PROP()
     RETURN()
@@ -64,4 +64,4 @@ Definition streebog_add512_spec :=
          field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s (Vec512.xor x_content y_content))) z).
+            (map Vlong (block512_to_int64s (Vec512.add x_content y_content))) r).
