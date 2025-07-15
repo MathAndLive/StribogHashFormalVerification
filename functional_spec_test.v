@@ -31,48 +31,32 @@ Definition hex_char_to_bits (char : string) : bits :=
 Definition hex_string_to_bits (s : string) : bits :=
   flat_map (fun c => hex_char_to_bits (String c "")) (list_ascii_of_string s).
 
-(* А.1 Пример 1 *)
-Definition M1 : bits := hex_string_to_bits "323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130".
+Module Example1.
+  Definition M1 : bits := hex_string_to_bits "323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130".
 
-(* А.1.1 Для функции хэширования с длиной хэш-кода 512 бит  *)
-Definition stage_3_first_line_result : block512 := bits_to_block512 (hex_string_to_bits "01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130").
-Example test_stage_3_first_line_result : bits_to_block512 ((repeat false (511 - (length M1))) ++ (true :: M1)) = stage_3_first_line_result.
-Proof. reflexivity. Qed.
+  Definition h := IV512.
+  Definition N := Vec512.repr 0.
 
-(* Definition test_H512_result : block512 := bits_to_block512 (hex_string_to_bits "00557be5e584fd52a449b16b0251d05d27f94ab76cbaa6da890b59d8ef1e159d").
-Example test_H512 : (H512 M1) = test_H512_result.
-Proof. reflexivity. Qed. *)
+  Definition h_xor_N := Vec512.xor h N.
 
-  (*
-Program Fixpoint nat_to_bits (x : nat) {measure x} : bits :=
-  match x with
-  | O => [false]
-  | S O => [true]
-  |  S (S _) => (Nat.eqb (x mod 2) 1) :: nat_to_bits (x / 2)
-  end.
-Next Obligation.
-  intros.
-  simpl.
-Qed. *)
+  Definition s_h_xor_N := s h_xor_N.
+  Compute Vec512.unsigned s_h_xor_N ?= 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc .
 
-Definition h := IV512.
-Definition N := Vec512.repr 0.
+  Definition p_s_h_xor_N := p s_h_xor_N.
+  Compute Vec512.unsigned s_h_xor_N ?= 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc .
 
-Definition h_xor_N := Vec512.xor h N.
+  Definition K := l p_s_h_xor_N.
+  Compute Vec512.unsigned K ?= 0xb383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574 .
 
-Definition s_h_xor_N := s h_xor_N.
-Compute Vec512.unsigned s_h_xor_N ?= 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc .
+  Definition K1 := K.
+  Definition m := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
 
-Definition p_s_h_xor_N := p s_h_xor_N.
-Compute Vec512.unsigned s_h_xor_N ?= 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc .
+  Definition xor_k1_m := Vec512.xor K1 (Vec512.repr m).
+  Compute Vec512.unsigned xor_k1_m ?= 0xb2b1cd1ef7ec924286b7cf1cffe49c4c84b5c91afde694448abbcb18fbe0964682b3c516f9e2904080b1cd1ef7ec924286b7cf1cffe49c4c84b5c91afde69444 .
+  
+  Definition s_xor_k1_m := s xor_k1_m.
+  Compute Vec512.unsigned s_xor_k1_m ?= 0x4645d95fc0beec2c432f8914b62d4efd3e5e37f14b097aead67de417c220b0482492ac996667e0ebdf45d95fc0beec2c432f8914b62d4efd3e5e37f14b097aea.
 
-Definition l_p_s_h_xor_N := l p_s_h_xor_N.
-Compute Vec512.unsigned l_p_s_h_xor_N ?= 0xb383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574 .
-
-Definition k1 := l_p_s_h_xor_N.
-Definition m := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
-
-Definition xor_k1_m := Vec512.xor k1 (Vec512.repr m).
-Compute Vec512.unsigned xor_k1_m ?= 0xb2b1cd1ef7ec924286b7cf1cffe49c4c84b5c91afde694448abbcb18fbe0964682b3c516f9e2904080b1cd1ef7ec924286b7cf1cffe49c4c84b5c91afde69444 .
-
-
+  Definition p_s_xor_k1_m := p s_xor_k1_m.
+  Compute Vec512.unsigned p_s_xor_k1_m ?= 0x46433ed624df433e452f5e7d92452f5ed98937e4acd989375f14f117995f14f1c0b64bc266c0b64bbe2d092067be2d09ec4e7ab0e0ec4e7a2cfdea48eb2cfdea.
+End Example1.
