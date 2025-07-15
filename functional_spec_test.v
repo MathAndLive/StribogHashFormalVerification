@@ -45,6 +45,7 @@ Proof. reflexivity. Qed.
 Example test_H512 : (H512 M1) = test_H512_result.
 Proof. reflexivity. Qed. *)
 
+  (*
 Program Fixpoint nat_to_bits (x : nat) {measure x} : bits :=
   match x with
   | O => [false]
@@ -54,4 +55,28 @@ Program Fixpoint nat_to_bits (x : nat) {measure x} : bits :=
 Next Obligation.
   intros.
   simpl.
-Qed.
+Qed. *)
+
+Definition LPS (x : block512) : block512 := l (p (s x)).
+
+Definition h := IV512.
+Definition N := Vec512.repr 0.
+
+Definition h_xor_N := Vec512.xor h N.
+
+Definition s_h_xor_N := s h_xor_N.
+Compute Vec512.unsigned s_h_xor_N ?= 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc .
+
+Definition p_s_h_xor_N := p s_h_xor_N.
+Compute Vec512.unsigned s_h_xor_N ?= 0xfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc .
+
+Definition l_p_s_h_xor_N := l p_s_h_xor_N.
+Compute Vec512.unsigned l_p_s_h_xor_N ?= 0xb383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574 .
+
+Definition k1 := l_p_s_h_xor_N.
+Definition m := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
+
+Definition xor_k1_m := Vec512.xor k1 (Vec512.repr m).
+Compute Vec512.unsigned xor_k1_m ?= 0xb2b1cd1ef7ec924286b7cf1cffe49c4c84b5c91afde694448abbcb18fbe0964682b3c516f9e2904080b1cd1ef7ec924286b7cf1cffe49c4c84b5c91afde69444 .
+
+
