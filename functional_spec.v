@@ -31,7 +31,7 @@ Definition LSB (n: nat) (b: Z) : Z :=
 Fixpoint Z_to_chunks (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
   | O => nil
-  | S k' => LSB m z :: Z_to_chunks m k' (Z.shiftr z (Z.of_nat m))
+  | S k' => (LSB m z) :: Z_to_chunks m k' (Z.shiftr z (Z.of_nat m))
   end.
 
 (* разделение числа на k байтов *)
@@ -53,7 +53,7 @@ Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
   | O => Z.zero
   | S k' => match il with
     | [] => Z.zero
-    | x::xs =>(Byte.unsigned x) + (Z.shiftl (bytes_to_Z k' xs ) 8)
+    | x::xs => (Byte.unsigned x) + (Z.shiftl (bytes_to_Z k' xs ) 8)
     end
   end.
 
@@ -64,25 +64,22 @@ Definition bytes_to_block512 (il: list byte): block512 :=
 Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
   map Int64.repr (Z_to_chunks 64 k z).
 
+
 Definition block512_to_int64s (b : block512) : list int64 :=
   Z_to_int64s 8 (Vec512.unsigned b).
 
-(* Конвертирует 8 бит в 1 байт *)
-Definition bits_to_byte (bs: bits) : byte :=
-  Byte.repr (
-    match bs with
-    | b0 :: b1:: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: [] =>
-        (if b7 then 128 else 0) +
-        (if b6 then 64 else 0) +
-        (if b5 then 32 else 0) +
-        (if b4 then 16 else 0) +
-        (if b3 then 8 else 0) +
-        (if b2 then 4 else 0) +
-        (if b1 then 2 else 0) +
-        (if b0 then 1 else 0)
-    | _ => 0 (* TODO: сделать ошибку на длину вектора не равно 8 *)
-    end
-  ).
+(* Перевод 8 бит в 1 байт *)
+(* с точки зрения здравого смысла на всех машинах данные должны быть длиной в 8 бит, но если каким-то чудом машина будет другой, то мы дополняем до 8 бит нулями *)
+Fixpoint bits_to_byte_rec (k : Z) (bs : bits) : byte :=
+  match k with
+  | 8 => Byte.repr 0
+  | _ => match bs with
+         | nil => Byte.repr 0
+         | x :: xs => Byte.repr ((if x then 1 else 0) + 2 * Byte.unsigned (bits_to_byte_rec (k + 1) xs))
+         end
+  end.
+
+Definition bits_to_byte (bs: bits) : byte := bits_to_byte_rec 0 bs.
 
 Fixpoint group_bits (bs: bits) : list bits :=
   match bs with
@@ -96,6 +93,20 @@ Definition bits_to_bytes (bs: bits) : list byte :=
 
 Definition bits_to_block512 (bs: bits) : block512 :=
   bytes_to_block512 (bits_to_bytes bs).
+
+
+Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
+  match k with
+  | O => Z.zero
+  | S k' => match il with
+    | [] => Z.zero
+    | x::xs =>(Int64.unsigned x) + (Z.shiftl (int64s_to_Z k' xs ) 64)
+    end
+  end.
+  
+Definition int64s_to_block512 (il: list int64): block512 :=
+  Vec512.repr (int64s_to_Z 8 il).
+
 
 Definition pi' : list byte := map Byte.repr
     [
@@ -124,9 +135,11 @@ Definition pi (il: list byte) :=
 (* функция S *)
 Definition s (v : block512) : block512 :=
     bytes_to_block512 (pi (block512_to_bytes v)).
-    
+
+
 (* Инициализационный вектор для хэша 512 бит — все нули *)
 Definition IV512 : block512 := Vec512.repr 0.
+
 
 Definition permute (permutation_list : list Z) (l : block512) : block512 :=
   let bytes := block512_to_bytes l in
@@ -144,20 +157,101 @@ Definition tau : list Z :=
 
 Definition p (l : block512) : block512 := permute tau l.
 
-(* Notation const2 := (0x46433ed624df433e452f5e7d92452f5ed98937e4acd989375f14f117995f14f1C0b64bc266c0b64bbe2d092067be2d09ec4e7ab0e0ec4e7a2cfdea48eb2cfdea).
 
+Definition A : list int64 := map Int64.repr
+  [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e; 
+    0x6c022c38f90a4c07; 0x3601161cf205268d; 0x1b8e0b0e798c13c8; 0x83478b07b2468764;
+    0xa011d380818e8f40; 0x5086e740ce47c920; 0x2843fd2067adea10; 0x14aff010bdd87508;
+    0x0ad97808d06cb404; 0x05e23c0468365a02; 0x8c711e02341b2d01; 0x46b60f011a83988e;
+    0x90dab52a387ae76f; 0x486dd4151c3dfdb9; 0x24b86a840e90f0d2; 0x125c354207487869;
+    0x092e94218d243cba; 0x8a174a9ec8121e5d; 0x4585254f64090fa0; 0xaccc9ca9328a8950;
+    0x9d4df05d5f661451; 0xc0a878a0a1330aa6; 0x60543c50de970553; 0x302a1e286fc58ca7;
+    0x18150f14b9ec46dd; 0x0c84890ad27623e0; 0x0642ca05693b9f70; 0x0321658cba93c138;
+    0x86275df09ce8aaa8; 0x439da0784e745554; 0xafc0503c273aa42a; 0xd960281e9d1d5215;
+    0xe230140fc0802984; 0x71180a8960409a42; 0xb60c05ca30204d21; 0x5b068c651810a89e;
+    0x456c34887a3805b9; 0xac361a443d1c8cd2; 0x561b0d22900e4669; 0x2b838811480723ba;
+    0x9bcf4486248d9f5d; 0xc3e9224312c8c1a0; 0xeffa11af0964ee50; 0xf97d86d98a327728;
+    0xe4fa2054a80b329c; 0x727d102a548b194e; 0x39b008152acb8227; 0x9258048415eb419d;
+    0x492c024284fbaec0; 0xaa16012142f35760; 0x550b8e9e21f7a530; 0xa48b474f9ef5dc18;
+    0x70a6a56e2440598e; 0x3853dc371220a247; 0x1ca76e95091051ad; 0x0edd37c48a08a6d8;
+    0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
+  ].
 
+(* если b в виде битов (big-endian) это b_63 ... b_0, а A это [a_0 ; ... ; a_63] то эта функция выдаёт b_63 * a_0 XOR ... XOR b_0 * a_63 *)
+Definition b_times_A (b : int64) : int64 :=
+  let b_Z := Int64.unsigned b in fst (fold_right (fun x y => ((Int64.xor (fst y) (if (Z.testbit b_Z (snd y)) then x else (Int64.repr 0))), (snd y) + 1)) (Int64.repr 0, 0) A).
 
-Notation const := (0x4645d95fc0beec2c432f8914b62d4efd3e5e37f14b097aead67de417c220b0482492ac996667e0ebdf45d95fc0beec2c432f8914b62d4efd3e5e37f14b097aea).
+(* функция линейного преобразования *)
+Definition l (b : block512) : block512 :=
+  int64s_to_block512 (map (fun x => b_times_A x) (block512_to_int64s b)).
 
-Compute const2.
+Definition C : list Z :=
+  [
+    0xb1085bda1ecadae9ebcb2f81c0657c1f2f6a76432e45d016714eb88d7585c4fc4b7ce09192676901a2422a08a460d31505767436cc744d23dd806559f2a64507;
+    0x6fa3b58aa99d2f1a4fe39d460f70b5d7f3feea720a232b9861d55e0f16b501319ab5176b12d699585cb561c2db0aa7ca55dda21bd7cbcd56e679047021b19bb7;
+    0xf574dcac2bce2fc70a39fc286a3d843506f15e5f529c1f8bf2ea7514b1297b7bd3e20fe490359eb1c1c93a376062db09c2b6f443867adb31991e96f50aba0ab2;
+    0xef1fdfb3e81566d2f948e1a05d71e4dd488e857e335c3c7d9d721cad685e353fa9d72c82ed03d675d8b71333935203be3453eaa193e837f1220cbebc84e3d12e;
+    0x4bea6bacad4747999a3f410c6ca923637f151c1f1686104a359e35d7800fffbdbfcd1747253af5a3dfff00b723271a167a56a27ea9ea63f5601758fd7c6cfe57;
+    0xae4faeae1d3ad3d96fa4c33b7a3039c02d66c4f95142a46c187f9ab49af08ec6cffaa6b71c9ab7b40af21f66c2bec6b6bf71c57236904f35fa68407a46647d6e;
+    0xf4c70e16eeaac5ec51ac86febf240954399ec6c7e6bf87c9d3473e33197a93c90992abc52d822c3706476983284a05043517454ca23c4af38886564d3a14d493;
+    0x9b1f5b424d93c9a703e7aa020c6e41414eb7f8719c36de1e89b4443b4ddbc49af4892bcb929b069069d18d2bd1a5c42f36acc2355951a8d9a47f0dd4bf02e71e;
+    0x378f5a541631229b944c9ad8ec165fde3a7d3a1b258942243cd955b7e00d0984800a440bdbb2ceb17b2b8a9aa6079c540e38dc92cb1f2a607261445183235adb;
+    0xabbedea680056f52382ae548b2e4f3f38941e71cff8a78db1fffe18a1b3361039fe76702af69334b7a1e6c303b7652f43698fad1153bb6c374b4c7fb98459ced;
+    0x7bcd9ed0efc889fb3002c6cd635afe94d8fa6bbbebab076120018021148466798a1d71efea48b9caefbacd1d7d476e98dea2594ac06fd85d6bcaa4cd81f32d1b;
+    0x378ee767f11631bad21380b00449b17acda43c32bcdf1d77f82012d430219f9b5d80ef9d1891cc86e71da4aa88e12852faf417d5d9b21b9948bc924af11bd720
+  ].
 
-(* константа для функции g *)
+Definition LPSX (block1 block2 : block512): block512 := l (p (s (Vec512.xor block1 block2))).
 
-Compute Vec512.unsigned (p (Vec512.repr const)) ?= const2. *)
+Fixpoint generate_keys (K : block512) (n : nat) : list block512 :=
+  match n with
+  | O => []
+  | S O => [K]
+  | S (S i) =>
+      let prev := generate_keys K i in
+      let Ki_1 := last prev K in
+      let Ci := Vec512.repr (nthi_Z C (Z.of_nat i)) in
+      prev ++ [LPSX Ki_1 Ci]
+  end.
 
-Definition g(N h m: block512) : block512.
-Admitted.
+(* Оптимизированная версия для генерации ключей, которая запоминает предыдущие вычисленные значения *)
+Fixpoint generate_keys_tailrec (acc : list block512) (n : nat) : list block512 :=
+  match n with
+  | O => acc
+  | S i =>
+      match acc with
+      | [] => generate_keys_tailrec acc i 
+      | k_prev :: _ =>
+          let Ci := Vec512.repr (nthi_Z C (Z.of_nat (List.length acc))) in
+          let k_new := LPSX k_prev Ci in
+          generate_keys_tailrec (k_new :: acc) i
+      end
+  end.
+
+Definition generate_keys' (K1 : block512) (n : nat) : list block512 :=
+  List.rev (generate_keys_tailrec [K1] (n - 1)).
+
+Fixpoint E (keys: list block512)(m: block512): block512 :=
+  match keys with
+  | [] => m 
+  | [k_last] => Vec512.xor k_last m
+  | k :: ks => LPSX k (E ks m)
+  end.
+
+(* Другая версия с k_prev
+Fixpoint E' (h N m : block512) (c : list Z (* подается развернутый список*)) : block512 * block512 :=
+  match c with
+  | nil => (LPSX h N, m)
+  | x :: xs => let (k_prev, m') := E' h N m xs in
+               let k_new := LPSX k_prev (Vec512.repr x) in
+                (k_new, LPSX k_prev m')
+end. *)
+
+Definition g_N (N h m : block512) : block512 :=
+  let K1 := LPSX h N in
+  let keys := generate_keys K1 13 in
+  let e := E keys m in
+  Vec512.xor (Vec512.xor e h) m.
 
 Definition stage_1 (IV : block512) : block512 * block512 * block512 :=
   let h := IV in
@@ -169,7 +263,7 @@ Function stage_2 (h N Sigma : block512) (M : bits) {measure length M} : block512
   if lt_dec (length M) 512
   then (h, N, Sigma, M)
   else let m := bytes_to_block512 (bits_to_bytes (rev (firstn 512 (rev M)))) in
-       let h := g N h m in
+       let h := g_N N h m in
        let N := Vec512.repr (Vec512.unsigned N + 512) in
        let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
        let M := firstn ((length M) - 512) M in
@@ -182,11 +276,11 @@ Defined.
 
 Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512 :=
   let m := bits_to_block512 ((repeat false (511 - (length M))) ++ (true :: M)) in
-  let h := g N h m in
+  let h := g_N N h m in
   let N := Vec512.repr (Vec512.unsigned N + (Z.of_nat (length M))) in
   let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Z.of_nat (8 * (length (block512_to_bytes m))))) in
-  let h := g (Vec512.repr 0) h N in
-  let h := g (Vec512.repr 0) h Sigma in
+  let h := g_N (Vec512.repr 0) h N in
+  let h := g_N (Vec512.repr 0) h Sigma in
   h.
 
 Definition H512 (M : bits) : block512 :=
@@ -194,41 +288,3 @@ Definition H512 (M : bits) : block512 :=
   let '(h', N', Sigma', M') := (stage_2 h N Sigma M) in
   stage_3 h' N' Sigma' M'.
   
-Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
-  match k with
-  | O => Z.zero
-  | S k' => match il with
-    | [] => Z.zero
-    | x::xs =>(Int64.unsigned x) + (Z.shiftl (int64s_to_Z k' xs ) 64)
-    end
-  end.
-  
-Definition int64s_to_block512 (il: list int64): block512 :=
-  Vec512.repr (int64s_to_Z 8 il).
-
-Definition A : list int64 := map (fun z => Int64.repr z)
-  [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e; 
-   0x6c022c38f90a4c07; 0x3601161cf205268d; 0x1b8e0b0e798c13c8; 0x83478b07b2468764;
-   0xa011d380818e8f40; 0x5086e740ce47c920; 0x2843fd2067adea10; 0x14aff010bdd87508;
-   0x0ad97808d06cb404; 0x05e23c0468365a02; 0x8c711e02341b2d01; 0x46b60f011a83988e;
-   0x90dab52a387ae76f; 0x486dd4151c3dfdb9; 0x24b86a840e90f0d2; 0x125c354207487869;
-   0x092e94218d243cba; 0x8a174a9ec8121e5d; 0x4585254f64090fa0; 0xaccc9ca9328a8950;
-   0x9d4df05d5f661451; 0xc0a878a0a1330aa6; 0x60543c50de970553; 0x302a1e286fc58ca7;
-   0x18150f14b9ec46dd; 0x0c84890ad27623e0; 0x0642ca05693b9f70; 0x0321658cba93c138;
-   0x86275df09ce8aaa8; 0x439da0784e745554; 0xafc0503c273aa42a; 0xd960281e9d1d5215;
-   0xe230140fc0802984; 0x71180a8960409a42; 0xb60c05ca30204d21; 0x5b068c651810a89e;
-   0x456c34887a3805b9; 0xac361a443d1c8cd2; 0x561b0d22900e4669; 0x2b838811480723ba;
-   0x9bcf4486248d9f5d; 0xc3e9224312c8c1a0; 0xeffa11af0964ee50; 0xf97d86d98a327728;
-   0xe4fa2054a80b329c; 0x727d102a548b194e; 0x39b008152acb8227; 0x9258048415eb419d;
-   0x492c024284fbaec0; 0xaa16012142f35760; 0x550b8e9e21f7a530; 0xa48b474f9ef5dc18;
-   0x70a6a56e2440598e; 0x3853dc371220a247; 0x1ca76e95091051ad; 0x0edd37c48a08a6d8;
-   0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
-    ].
-
-(* если b в виде битов (big-endian) это b_63 ... b_0, а A это [a_0 ; ... ; a_63] то эта функция выдаёт b_63 * a_0 XOR ... XOR b_0 * a_63 *)
-Definition b_times_A (b : int64) : int64 :=
-  let b_Z := Int64.unsigned b in fst (fold_right (fun x y => ((Int64.xor (fst y) (if (Z.testbit b_Z (snd y)) then x else (Int64.repr 0))), (snd y) + 1)) (Int64.repr 0, 0) A).
-
-(* функция линейного преобразования *)
-Definition l (b : block512) : block512 :=
-  int64s_to_block512 (map (fun x => b_times_A x) (block512_to_int64s b)).
