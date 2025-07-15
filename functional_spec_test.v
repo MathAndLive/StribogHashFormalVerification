@@ -9,27 +9,42 @@ Import ListNotations.
 
 Definition hex_char_to_bits (char : string) : bits :=
   match char with
-  | String "0" EmptyString => rev [false; false; false; false]
-  | String "1" EmptyString => rev [false; false; false; true]
-  | String "2" EmptyString => rev [false; false; true; false]
-  | String "3" EmptyString => rev [false; false; true; true]
-  | String "4" EmptyString => rev [false; true; false; false]
-  | String "5" EmptyString => rev [false; true; false; true]
-  | String "6" EmptyString => rev [false; true; true; false]
-  | String "7" EmptyString => rev [false; true; true; true]
-  | String "8" EmptyString => rev [true; false; false; false]
-  | String "9" EmptyString => rev [true; false; false; true]
-  | String "a" EmptyString => rev [true; false; true; false]
-  | String "b" EmptyString => rev [true; false; true; true]
-  | String "c" EmptyString => rev [true; true; false; false]
-  | String "d" EmptyString => rev [true; true; false; true]
-  | String "e" EmptyString => rev [true; true; true; false]
-  | String "f" EmptyString => rev [true; true; true; true]
+  | String "0" EmptyString => [false; false; false; false]
+  | String "1" EmptyString => [false; false; false; true]
+  | String "2" EmptyString => [false; false; true; false]
+  | String "3" EmptyString => [false; false; true; true]
+  | String "4" EmptyString => [false; true; false; false]
+  | String "5" EmptyString => [false; true; false; true]
+  | String "6" EmptyString => [false; true; true; false]
+  | String "7" EmptyString => [false; true; true; true]
+  | String "8" EmptyString => [true; false; false; false]
+  | String "9" EmptyString => [true; false; false; true]
+  | String "a" EmptyString => [true; false; true; false]
+  | String "b" EmptyString => [true; false; true; true]
+  | String "c" EmptyString => [true; true; false; false]
+  | String "d" EmptyString => [true; true; false; true]
+  | String "e" EmptyString => [true; true; true; false]
+  | String "f" EmptyString => [true; true; true; true]
   | _ => []
   end.
 
-Definition hex_string_to_bits (s : string) : bits :=
-  flat_map (fun c => hex_char_to_bits (String c "")) (list_ascii_of_string s).
+Module TestMessage.
+  Definition hex_string_to_bits (s : string) : bits :=
+    let conv := flat_map (fun c => hex_char_to_bits (String c "")) (list_ascii_of_string s)
+    in conv.
+
+  Definition m_str: string := "323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130".
+
+  Definition m_z : Z := 0x323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
+  Definition m_512 : Z := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
+
+  Definition m_less : bits := hex_string_to_bits m_str.
+  Definition m_less_add : bits := (repeat false (511 - (length m_less))) ++ [true] ++ m_less.
+
+  Compute Vec512.unsigned (bits_to_block512_be m_less) ?= m_z.
+  Compute Vec512.unsigned (bits_to_block512_be m_less_add) ?= m_512.
+Module TestMessage.
+
 
 Module TestExample1.
   Definition M1 : bits := hex_string_to_bits "323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130".
