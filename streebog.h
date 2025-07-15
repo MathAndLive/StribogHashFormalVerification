@@ -50,12 +50,6 @@ static inline unsigned int crypto_shash_digestsize(struct crypto_shash *tfm)
 }
 */
 
-
-static inline void *shash_desc_ctx(struct shash_desc *desc)
-{
-	return desc->__ctx;
-}
-
 typedef long unsigned int size_t;
 
 // для этих трёх функций стоит поискать спецификацию в VST и CompCert
