@@ -57,8 +57,6 @@ Next Obligation.
   simpl.
 Qed. *)
 
-Definition LPS (x : block512) : block512 := l (p (s x)).
-
 Definition h := IV512.
 Definition N := Vec512.repr 0.
 
