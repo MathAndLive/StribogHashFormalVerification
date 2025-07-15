@@ -63,15 +63,27 @@ Definition streebog_xor_spec :=
          field_at sh_w t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s (Vec512.xor x_content y_content))) z).
 
-Lemma xor_eq : forall (x y : list Int64.int) (x_content y_content : block512),
-  forall i : Z, 0 <= i < 8 ->
-    Int64.xor (Znth i x) (Znth i y) =
-      Znth i (block512_to_int64s (Vec512.xor x_content y_content)).
+Fixpoint xor_lists_of_int64s (l1 l2 : list Int64.int) : list Int64.int :=
+  map (fun e => Int64.xor (fst e) (snd e)) (combine l1 l2).
+
+Lemma xor_block512_is_xor_int64s : forall (x y : block512),
+  xor_lists_of_int64s (block512_to_int64s x) (block512_to_int64s y) =
+    block512_to_int64s (Vec512.xor x y).
 Proof.
-  intros x y x_content y_content i H.
+  intros x y.
+  induction (block512_to_int64s x) as [| b IHb].
+  - simpl. destruct block512_to_int64s.
+    + reflexivity.
+    + Search ([] = ?x).
+Admitted.
+
+Lemma xor_int64s_is_xor_block512 : forall (x y : list Int64.int),
+  xor_lists_of_int64s x y = block512_to_int64s (Vec512.xor (int64s_to_block512 x) (int64s_to_block512 y)).
+Proof.
+  (* intros x y x_content y_content i H. *)
   (* unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks. unfold LSB. *)
-  induction i.
-  - unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks.
+  (* induction i. *)
+  (* - unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks. *)
 Admitted.
 
 Lemma body_sumarray :
@@ -91,12 +103,6 @@ Proof.
   }
   do 22 forward.
   entailer!.
-  unfold block512_to_int64s.
-  (* unfold block512_to_int64s. *)
-  unfold Z_to_int64s.
-  (* unfold Z_to_int64s. *)
-  unfold Z_to_chunks.
-  apply xor_eq.
-  (* unfold Z_to_chunks. *)
-  simpl.
-  unfold LSB.
+  rewrite <- (xor_block512_is_xor_int64s x_content y_content).
+  entailer!.
+Qed.
