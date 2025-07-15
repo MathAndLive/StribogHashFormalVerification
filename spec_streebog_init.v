@@ -1,11 +1,43 @@
 From VST.floyd Require Import proofauto library.
-Require Import streebog_init.
+Require Import streebog_generic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Require Import functional_spec.
 
 Import ListNotations.
+
+
+Definition t_shash_desc := Tstruct _shash_desc noattr.
+Definition t_streebog_state := Tstruct _streebog_state noattr.
+
+Definition shash_desc_ctx_spec :=
+  DECLARE _shash_desc_ctx
+  WITH sh : share, desc : val, ctx : val, tfm : val, ctx_content : block512
+  PRE [ tptr t_shash_desc]
+    PROP (writable_share sh)
+    PARAMS (desc)
+    SEP (
+          field_at sh t_shash_desc (DOT ___ctx) (map Vlong (block512_to_int64s ctx_content)) desc * 
+          field_at sh t_shash_desc (DOT _tfm) tfm desc;
+          data_at sh (tarray (tptr tvoid) 0) (map Vlong (block512_to_int64s ctx_content)) ctx
+    )
+  POST [ tptr tvoid ]
+    PROP ()
+    RETURN (ctx)
+    SEP (
+            field_at sh t_shash_desc (DOT ___ctx) (map Vlong (block512_to_int64s ctx_content)) desc * 
+            field_at sh t_shash_desc (DOT _tfm) tfm desc;
+            data_at sh (tarray (tptr tvoid) 0) (map Vlong (block512_to_int64s ctx_content)) ctx
+    ).
+
+Lemma body_shash_desc_ctx :
+  semax_body Vprog [] f_shash_desc_ctx shash_desc_ctx_spec.
+Proof.
+  start_function.
+  forward.
+
+Admitted.
 
 (*
 static int streebog_init(struct shash_desc *desc)
@@ -22,9 +54,6 @@ static int streebog_init(struct shash_desc *desc)
 	return 0;
 }
 *)
-
-Definition t_shash_desc := Tstruct _shash_desc noattr.
-Definition t_streebog_state := Tstruct _streebog_state noattr.
 
 Definition streebog_init_spec := 
   DECLARE _streebog_init 
@@ -58,4 +87,13 @@ Definition streebog_init_spec :=
              (map Vlong (block512_to_int64s Vec512.zero)) ctx * field_at sh t_streebog_state (DOT _Sigma)
              (map Vlong (block512_to_int64s Vec512.zero)) ctx * field_at sh t_streebog_state (DOT _hash)
              (map Vlong (block512_to_int64s Vec512.zero)) ctx).
+
+Lemma body_reverse :
+  semax_body Vprog [] f_streebog_init streebog_init_spec.
+Proof.
+  start_function.
+  Intros.
+  forward_call(desc).
+
+Qed.
 

@@ -18,6 +18,9 @@ typedef unsigned long long __le64;
 #define STREEBOG256_DIGEST_SIZE	32
 #define STREEBOG512_DIGEST_SIZE	64
 #define STREEBOG_BLOCK_SIZE	64
+#define ARCH_SLAB_MINALIGN	16 
+#define crypto_shash_digestsize(tfm) STREEBOG512_DIGEST_SIZE
+#define __aligned(x) __attribute__((aligned(x)))
 
 // необходимо будет прописать тройки Хоара для них так, что вход равен выходу
 // оставляем так в предположении того, что работаем с little-endian машиной
@@ -28,12 +31,17 @@ typedef unsigned char u8; /* source: https://elixir.bootlin.com/linux/v6.15.6/so
 typedef unsigned int u32; /* source: https://elixir.bootlin.com/linux/v6.15.6/source/arch/powerpc/boot/types.h#L12 */
 typedef unsigned long long u64; /* source: https://elixir.bootlin.com/linux/v6.15.6/source/arch/powerpc/boot/types.h#L12 */
 
-/* // для справки, надо прописать в предусловиях
-static inline void *shash_desc_ctx(struct shash_desc *desc)
+struct shash_desc {
+	struct crypto_shash *tfm;
+	void * __ctx[]; // __aligned(ARCH_SLAB_MINALIGN); // несущественное
+};
+
+// для справки, надо прописать в предусловиях
+void *shash_desc_ctx(struct shash_desc *desc)
 {
 	return desc->__ctx;
 }
-*/ 
+
 
 /* // в предусловиях пропишем, что это либо STREEBOG256_DIGEST_SIZE, либо STREEBOG512_DIGEST_SIZE
 static inline unsigned int crypto_shash_digestsize(struct crypto_shash *tfm)
@@ -42,10 +50,6 @@ static inline unsigned int crypto_shash_digestsize(struct crypto_shash *tfm)
 }
 */
 
-struct shash_desc {
-	struct crypto_shash *tfm;
-	void * __ctx[]; // __aligned(ARCH_SLAB_MINALIGN); // несущественное
-};
 
 typedef long unsigned int size_t;
 
