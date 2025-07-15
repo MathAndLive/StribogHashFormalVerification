@@ -52,16 +52,14 @@ Module TestExample1.
   Proof. reflexivity. Qed.
 
   Module TestE.
-    Definition LPSX (a b : block512) : block512 :=
-      l (p (s (Vec512.xor a b))).
+    Definition K1 := K.
+    Definition C1 := Vec512.repr (hd 0 C).
 
     Module TestIteration1.
-      Definition K1 := K.
       Definition xor_K1_m := Vec512.xor K1 (Vec512.repr m).
       Definition s_xor_K1_m := s xor_K1_m.
       Definition p_s_xor_K1_m := p s_xor_K1_m.
       Definition l_p_s_xor_K1_m := l p_s_xor_K1_m.
-      Definition C1 := Vec512.repr (hd 0 C).
       Definition xor_K1_C1 := Vec512.xor K1 C1.
       Definition s_xor_K1_C1 := s xor_K1_C1.
       Definition p_s_xor_K1_C1 := p s_xor_K1_C1.
@@ -90,11 +88,11 @@ Module TestExample1.
 
       Lemma test_l_p_s_xor_K1_C1 : Vec512.unsigned l_p_s_xor_K1_C1 = 0xd0b00807642fd78f13f2c3ebc774e80de0e902d23aef2ee9a73d010807dae9c188be14f0b2da27973569cd2ba051301036f728bd1d7eec33f4d18af70c46cf1e.
       Proof. reflexivity. Qed.
-
-      Lemma test_LSPX_eq_l_p_s_xor_K1_C1 : Vec512.unsigned l_p_s_xor_K1_C1 = Vec512.unsigned (LPSX K1 C1).
-      Proof. reflexivity. Qed.
     End TestIteration1.
-  End TestE.
-  Compute g_N N h m.
 
+    Module TestLPSX.
+      Lemma test_LSPX : Vec512.unsigned (LPSX K1 C1) = 0xd0b00807642fd78f13f2c3ebc774e80de0e902d23aef2ee9a73d010807dae9c188be14f0b2da27973569cd2ba051301036f728bd1d7eec33f4d18af70c46cf1e.
+      Proof. reflexivity. Qed.
+    End TestLPSX.
+  End TestE.
 End TestExample1.
