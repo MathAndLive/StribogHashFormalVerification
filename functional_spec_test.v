@@ -69,7 +69,7 @@ Module Example1.
   Compute Vec512.unsigned xor_K1_C1 ?= 0x028ba7f4d01e7f9d5848d3af0eb1d96b9ce98a6de0917562c2cd44a3bb516188f8ff1cbf5cb3cc7511c1d6266ab47661b6f5881802a0e8576e0399773c72e073.
 
   Definition s_xor_K1_C1 := s xor_K1_C1.
-  Compute s_xor_K1_C1.                                                                              (* | | *)                         (* || *)
-  Compute Vec512.unsigned s_xor_K1_C1.  (* ddf644e6e15f5733bff249410445536f4e9bd69e200f3596b3d9ea737d703dd7d1b6143b9c9288357758f8ef78278a3d55f4d717dda7cb12b211e87e7f19203d*)
+  Compute s_xor_K1_C1.
+  Compute Vec512.unsigned s_xor_K1_C1.
   Compute Vec512.unsigned s_xor_K1_C1 ?= 0xddf644e6e15f5733bff249410445536f4e9bd69e200f3596b3d9ea737d70a1d7d1b6143b9c9288357758f8ef78278aa155f4d717dda7cb12b211e87e7f19203d.
 End Example1.
