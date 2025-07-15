@@ -67,22 +67,18 @@ Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
 Definition block512_to_int64s (b : block512) : list int64 :=
   Z_to_int64s 8 (Vec512.unsigned b).
 
-(* Конвертирует 8 бит в 1 байт *)
-Definition bits_to_byte (bs: bits) : byte :=
-  Byte.repr (
-    match bs with
-    | b0 :: b1:: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: [] =>
-        (if b7 then 128 else 0) +
-        (if b6 then 64 else 0) +
-        (if b5 then 32 else 0) +
-        (if b4 then 16 else 0) +
-        (if b3 then 8 else 0) +
-        (if b2 then 4 else 0) +
-        (if b1 then 2 else 0) +
-        (if b0 then 1 else 0)
-    | _ => 0 (* TODO: сделать ошибку на длину вектора не равно 8 *)
-    end
-  ).
+(* Перевод 8 бит в 1 байт *)
+(* с точки зрения здравого смысла на всех машинах данные должны быть длиной в 8 бит, но если каким-то чудом машина будет другой, то мы дополняем до 8 бит нулями *)
+Fixpoint bits_to_byte_rec (k : Z) (bs : bits) : byte :=
+  match k with
+  | 8 => Byte.repr 0
+  | _ => match bs with
+         | nil => Byte.repr 0
+         | x :: xs => Byte.repr ((if x then 1 else 0) + 2 * Byte.unsigned (bits_to_byte_rec (k + 1) xs))
+         end
+  end.
+
+Definition bits_to_byte (bs: bits) : byte := bits_to_byte_rec 0 bs.
 
 Fixpoint group_bits (bs: bits) : list bits :=
   match bs with
@@ -161,6 +157,7 @@ Definition tau : list Z :=
 
 Definition p (l : block512) : block512 := permute tau l.
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 
 Definition A : list int64 := map Int64.repr
@@ -271,6 +268,8 @@ Compute const2.
 
 Compute Vec512.unsigned (p (Vec512.repr const)) ?= const2. *)
 
+=======
+>>>>>>> 2ecc7c95e248917fb1a271b1be9e9ccb0a04b558
 Definition g(N h m: block512) : block512.
 Admitted.
 >>>>>>> 75f9ccd595e412efa7116fda307b0812409de94e
