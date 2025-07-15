@@ -258,7 +258,6 @@ Definition g_N (N h m : block512) : block512 :=
   let e := E keys m in
   Vec512.xor (Vec512.xor e h) m.
 
-
 Definition stage_1 (IV : block512) : block512 * block512 * block512 :=
   let h := IV in
   let N := Vec512.repr 0 in
