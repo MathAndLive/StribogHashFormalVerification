@@ -74,7 +74,9 @@ Lemma xor_list_cons : forall (x y : Int64.int) (xs ys : list Int64.int),
   xor_lists_of_int64s (x::xs) (y::ys) =
     (Int64.xor x y) :: xor_lists_of_int64s xs ys.
 Proof.
-Admitted.
+  unfold xor_lists_of_int64s.
+  auto.
+Qed.
 
 Lemma shiftr_unsigned_comm : forall x,
    Z.shiftr (Vec512.unsigned x) 64 = Vec512.unsigned (Vec512.shr (Vec512.repr 64) x).
