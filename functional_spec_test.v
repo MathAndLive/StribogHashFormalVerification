@@ -41,8 +41,13 @@ Module TestMessage.
   Definition m_less : bits := hex_string_to_bits m_str.
   Definition m_less_add : bits := (repeat false (511 - (length m_less))) ++ [true] ++ m_less.
 
-  Compute Vec512.unsigned (bits_to_block512_be m_less) ?= m_z.
-  Compute Vec512.unsigned (bits_to_block512_be m_less_add) ?= m_512.
+
+  Lemma test_m_less: Vec512.unsigned (bits_to_block512_be m_less) = m_z.
+  Proof. reflexivity. Qed.
+
+  Lemma test_m_add: Vec512.unsigned (bits_to_block512_be m_less_add) = m_512.
+  Proof. reflexivity. Qed.
+
 Module TestMessage.
 
 
@@ -167,75 +172,9 @@ Module Example2. (* пример 2 из ГОСТа*)
     Compute k13.*)
 End Example2.
 
-Module Some_tests.
-(* А.1 Пример 1 *)
-Definition M1 : bits := hex_string_to_bits "323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130".
-
-Compute bits_to_bytes(hex_string_to_bits "486f64c1917879417fef082b3381a4e211c324f074654c38823a7b76f830ad00fa1fbae42b1285c0352f227524bc9ab16254288dd6863dccd5b9f54a1ad0541b").
-Compute block512_to_bytes( H512 M1).
-
-Definition testbytes : bits := hex_string_to_bits "32". (* 00110010  *)
-Compute testbytes.
-
-(* Program Fixpoint nat_to_bits (x : nat) {measure x} : bits :=
-  match x with
-  | O => [false]
-  | S O => [true]
-  |  S (S _) => (Nat.eqb (x mod 2) 1) :: nat_to_bits (x / 2)
-  end.
-Next Obligation.
-  intros.
-  simpl.
-Qed. *)
-
-Module test_LPSX_K1.
-  Definition N : block512 := IV512.
-  Definition h : block512 := Vec512.repr 0.
-  Definition m : Z := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
-
-  Definition z_to_block512 (z : Z) : block512 := bytes_to_block512 (Z_to_bytes 64 z).
-
-  Definition k1_test : Z := 0xb383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574.
-  Definition k1_result: block512 := LPSX h N.
-
-  (* Example test_LPSX :
-      k1_result = z_to_block512 k1_test.
-  Proof.
-      reflexivity.
-  Qed. *)
-
-  (* OR *)
-  Compute (LPSX h N).
-  Compute (z_to_block512 k1_test).
-End test_LPSX_K1.
-
-(* Module test_bits.
-(* А.1 Пример 1 *)
-  Definition m_less : bits := hex_string_to_bits "323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130".
-  Definition m_512 : Z := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
-  Definition m_less_added := Vec512.unsigned (bits_to_block512 ((repeat false (511 - (length m_less))) ++ (true :: m_less)) ).
-  Compute m_less_added ?= m_512.
-End test_bits. *)
-
-
-Module Helpers_0x.
-  Definition hex_char (n : Z) : ascii :=
-  ascii_of_nat (Z.to_nat (if n <? 10 then 48 + n else 87 + n)).
-
-  Fixpoint Z2hex_aux (fuel : nat) (n : Z) : string :=
-    match fuel with
-    | O => "???" (* защита от зацикливания *)
-    | S fuel' =>
-      if n <? 16 then String (hex_char n) ""
-      else Z2hex_aux fuel' (Z.div n 16) ++ String (hex_char (Z.rem n 16)) ""
-    end.
-
-  Definition Z2hex (n : Z) : string := Z2hex_aux 1000 n.
-End Helpers_0x.
-
 
 Module test_generate_keys.
-Definition keys_result := map Vec512.repr [
+  Definition keys_result := map Vec512.repr [
     0xb383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574;
     0xd0b00807642fd78f13f2c3ebc774e80de0e902d23aef2ee9a73d010807dae9c188be14f0b2da27973569cd2ba051301036f728bd1d7eec33f4d18af70c46cf1e;
     0x9d4475c7899f2d0bb0e8b7dac6ef6e6b44ecf66716d3a0f16681105e2d13712a1a9387ecc257930e2d61014a1b5c9fc9e24e7d636eb1607e816dbaf927b8fca9;
@@ -263,24 +202,8 @@ Definition keys_result := map Vec512.repr [
 
   Definition vec2int := map (fun x => x.(Vec512.intval)).
 
-  Import Helpers_0x.
-
-  (* Проверяем, что конвертация block512 <-> Z <-> 0x корректна *)
-  (* Definition test1 := (Vec512.repr 0x0740b3faa03ed39b257dd6e3db7c1bf56b6e18e40cdaabd30617cecbaddd618ea5e61bb4654599581dd30c24c1ab877ad0687948286cfefaa7eef99f6068b315).
-  Compute Vec512.intval test1.
-  Compute Z2hex (Vec512.intval test1). *)
-  
-  Compute Z2hex (Vec512.intval K1). (* must be: b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574b383fc2eced4a574 *)
-  Compute Z2hex (Vec512.intval K2). (* must be: d0b00807642fd78f13f2c3ebc774e80de0e902d23aef2ee9a73d010807dae9c188be14f0b2da27973569cd2ba051301036f728bd1d7eec33f4d18af70c46cf1e *)                                
-  
-  Compute vec2int keys.
-  Compute vec2int keys_result. 
-
-  Example test_gen_keys :
-    keys_result = keys.
-  Proof.
-      reflexivity.
-  Qed. 
+  Example test_gen_keys : keys_result = keys.
+  Proof. reflexivity. Qed.
 
 End test_generate_keys.
 
@@ -313,21 +236,50 @@ Module test_g_N.
   Definition test_result := 0xfd102cf8812ccb1191ea34af21394f3817a86641445aa9a626488adb33738ebd2754f6908cbbbac5d3ed0f522c50815c954135793fb1f5d905fee4736b3bdae2.  
 
   Lemma test_g: g_N N h (Vec512.repr m) = Vec512.repr test_result. 
-  Proof.
-    reflexivity.
-  Qed.
+  Proof. reflexivity. Qed.
+
 End test_g_N.  
 
-Compute bytes_to_Z 1 (Z_to_bytes 1 50).
+Module test_stage2.
+  Definition N : block512 := IV512.
+  Definition h : block512 := IV512.
+  Definition m : Z := 0xfbe2e5f0eee3c820fbeafaebef20fffbf0e1e0f0f520e0ed20e8ece0ebe5f0f2f120fff0eeec20f120faf2fee5e2202ce8f6f3ede220e8e6eee1e8f0f2d1202ce8f0f2e5e220e5d1.
+  Definition m_str: string := "fbe2e5f0eee3c820fbeafaebef20fffbf0e1e0f0f520e0ed20e8ece0ebe5f0f2f120fff0eeec20f120faf2fee5e2202ce8f6f3ede220e8e6eee1e8f0f2d1202ce8f0f2e5e220e5d1".
+  Definition m_less : bits := hex_string_to_bits m_str.
 
-Compute bytes_to_block512(Z_to_bytes 1 50).
+  Definition res2 : block512 * block512 * block512 * bits :=
+    match (stage_1 h) with
+    | (h1, N1, S1) => stage_2 h1 N1 S1 m_less
+    end.
 
-Compute (bytes_to_Z 1 (block512_to_bytes  (int64s_to_block512 (Z_to_int64s 1 (int64s_to_Z  1 (block512_to_int64s  (bytes_to_block512 (bits_to_bytes [false; false; true; true; false; false; true; false])))))))).
+  Definition test_result := (Vec512.repr 0xcd7f602312faa465e3bb4ccd9795395de2914e938f10f8e127b7ac459b0c517b98ef779ef7c7a46aa7843b8889731f482e5d221e8e2cea852e816cdac407c7af ,
+                             Vec512.repr 0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200 ,
+                             Vec512.repr 0xfbeafaebef20fffbf0e1e0f0f520e0ed20e8ece0ebe5f0f2f120fff0eeec20f120faf2fee5e2202ce8f6f3ede220e8e6eee1e8f0f2d1202ce8f0f2e5e220e5d1 ,
+                             hex_string_to_bits "fbe2e5f0eee3c820") .
 
-Compute bytes_to_Z 1 (bits_to_bytes[false; false; true; true; false; false; true; false]).
+  Lemma test_s2: res2 = test_result.
+  Proof. reflexivity. Qed.
 
-Compute (bytes_to_Z 1 (block512_to_bytes  (int64s_to_block512 (Z_to_int64s 1 (int64s_to_Z  1 (block512_to_int64s  (bytes_to_block512 (bits_to_bytes [false; true; false; false; true; true; false; false])))))))).
+End test_stage2.
 
-Compute Z_to_chunks 4 2 50.
+Module test_stage3.
+  Definition N : block512 := IV512.
+  Definition h : block512 := IV512.
+  Definition m : Z := 0xfbe2e5f0eee3c820fbeafaebef20fffbf0e1e0f0f520e0ed20e8ece0ebe5f0f2f120fff0eeec20f120faf2fee5e2202ce8f6f3ede220e8e6eee1e8f0f2d1202ce8f0f2e5e220e5d1.
+  Definition m_str: string := "fbe2e5f0eee3c820fbeafaebef20fffbf0e1e0f0f520e0ed20e8ece0ebe5f0f2f120fff0eeec20f120faf2fee5e2202ce8f6f3ede220e8e6eee1e8f0f2d1202ce8f0f2e5e220e5d1".
+  Definition m_less : bits := hex_string_to_bits m_str.
 
-End Some_tests.
+  Definition res3 : block512 :=
+    match (stage_1 h) with
+    | (h1, N1, S1) => match (stage_2 h1 N1 S1 m_less) with
+      | (h2, N2, S2, m) => stage_3 h2 N2 S2 m
+      end
+    end.
+
+  Definition test_result := Vec512.repr 0x28fbc9bada033b1460642bdcddb90c3fb3e56c497ccd0f62b8a2ad4935e85f037613966de4ee00531ae60f3b5a47f8dae06915d5f2f194996fcabf2622e6881e .
+
+  Lemma test_s3: res3 = test_result.
+  Proof. reflexivity. Qed.
+
+End test_stage3.
+

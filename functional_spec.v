@@ -268,15 +268,18 @@ Definition stage_1 (IV : block512) : block512 * block512 * block512 :=
   let Sigma := Vec512.repr 0 in
   (h, N, Sigma) .
 
+Definition lastn (n : nat) (ls : bits) : bits :=
+  rev (firstn n (rev ls)) .
+
 Function stage_2 (h N Sigma : block512) (M : bits) {measure length M} : block512 * block512 * block512 * bits :=
   if lt_dec (length M) 512
   then (h, N, Sigma, M)
-  else let m := bytes_to_block512 (bits_to_bytes (rev (firstn 512 (rev M)))) in
-       let h := g_N N h m in
-       let N := Vec512.repr (Vec512.unsigned N + 512) in
-       let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Vec512.unsigned m))in
-       let M := firstn ((length M) - 512) M in
-       stage_2 h N Sigma M.
+  else let m' := bits_to_block512_be (lastn 512 M) in
+       let h' := g_N N h m' in
+       let N' := Vec512.add N (Vec512.repr 512) in
+       let Sigma' := Vec512.add Sigma m' in
+       let M' := firstn ((length M) - 512) M in
+       stage_2 h' N' Sigma' M'.
 Proof.
   intros. eapply Nat.le_lt_trans.
   - apply firstn_le_length.
@@ -284,13 +287,13 @@ Proof.
 Defined.
 
 Definition stage_3 (h N Sigma : block512%Z) (M : bits) : block512 :=
-  let m := bits_to_block512_le ((repeat false (511 - (length M))) ++ (true :: M)) in
-  let h := g_N N h m in
-  let N := Vec512.repr (Vec512.unsigned N + (Z.of_nat (length M))) in
-  let Sigma := Vec512.repr ((Vec512.unsigned Sigma) + (Z.of_nat (8 * (length (block512_to_bytes m))))) in
-  let h := g_N (Vec512.repr 0) h N in
-  let h := g_N (Vec512.repr 0) h Sigma in
-  h.
+  let m' := bits_to_block512_be ((repeat false (511 - (length M))) ++ [true] ++ M) in
+  let h_g := g_N N h m' in
+  let N' := Vec512.add N (Vec512.repr (Z.of_nat (length M))) in
+  let Sigma' := Vec512.add Sigma m' in
+  let h_N := g_N IV512 h_g N' in
+  let h_S := g_N IV512 h_N Sigma' in
+  h_S.
 
 Definition H512 (M : bits) : block512 :=
   let '(h, N, Sigma) := (stage_1 IV512) in
