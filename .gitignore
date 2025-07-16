@@ -7,3 +7,4 @@ _opam/
 *.glob
 .*.aux
 *.lia.cache
+*.nia.cache

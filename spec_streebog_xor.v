@@ -36,16 +36,12 @@ Print t_streebog_uint512_st.
 Definition streebog_xor_spec :=
   DECLARE _streebog_xor (* название верифицируемой функции из сгенерированного файла .v*)
   WITH sh_r : share, sh_w : share, x : val, y : val, z : val,
-            x_content : block512, y_content : block512,
-            z_content : block512
+            x_content : block512, y_content : block512, z_content : block512
             (* share = тип доступа к памяти: read/write *)
   PRE [tptr t_streebog_uint512_st, tptr t_streebog_uint512_st,
        tptr t_streebog_uint512_st]
        (* tptr - указатель на ... *)
-    PROP(readable_share sh_r; writable_share sh_w;
-         Zlength (block512_to_int64s x_content) = 8;
-         Zlength (block512_to_int64s y_content) = 8;
-         Zlength (block512_to_int64s z_content) = 8)
+    PROP(readable_share sh_r; writable_share sh_w)
     PARAMS (x; y; z) (* аргументы верифицируемой функции на C *)
     SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s x_content)) x;
@@ -74,16 +70,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma shiftr_xor : forall x y : block512,
-  Z.shiftr (Vec512.unsigned (Vec512.xor x y)) 64 =
-    Vec512.unsigned (Vec512.xor
-      (Vec512.shr (Vec512.repr 64) x)
-      (Vec512.shr (Vec512.repr 64) y)).
-Proof.
-  intros x y.
-  simpl. auto.
-Admitted.
-
 Lemma xor_lists_distr : forall (x y : Int64.int) (xs ys : list Int64.int),
   xor_lists_of_int64s (x::xs) (y::ys) =
     (Int64.xor x y) :: xor_lists_of_int64s xs ys.
@@ -110,6 +96,16 @@ Lemma xor_repr_comm : forall x y,
 Proof.
 Admitted.
 
+
+Lemma shiftr_xor : forall x y : block512,
+  Z.shiftr (Vec512.unsigned (Vec512.xor x y)) 64 =
+    Vec512.unsigned (Vec512.xor
+      (Vec512.shr (Vec512.repr 64) x)
+      (Vec512.shr (Vec512.repr 64) y)).
+Proof.
+  intros x y.
+Admitted.
+
 Lemma Z_to_int64s_xor : forall n x y,
   xor_lists_of_int64s (Z_to_int64s n (Vec512.unsigned x))
     (Z_to_int64s n (Vec512.unsigned y)) =
@@ -130,10 +126,10 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma xor_block512_is_xor_int64s : forall (x y : block512),
-  xor_lists_of_int64s (block512_to_int64s x) (block512_to_int64s y) =
-    block512_to_int64s (Vec512.xor x y).
-Proof.
+(* Lemma xor_block512_is_xor_int64s : forall (x y : block512), *)
+(*   xor_lists_of_int64s (block512_to_int64s x) (block512_to_int64s y) = *)
+(*     block512_to_int64s (Vec512.xor x y). *)
+(* Proof. *)
   (* intros x y H1 H2. *)
   (* unfold xor_lists_of_int64s. *)
   (* unfold Vec512.xor. *)
@@ -143,17 +139,16 @@ Proof.
   (* unfold Z_to_int64s. *)
   (* unfold Z_to_chunks. *)
   (* Search (Vec512.xor). *)
+(* Admitted. *)
 
-Admitted.
-
-Lemma xor_int64s_is_xor_block512 : forall (x y : list Int64.int),
-  xor_lists_of_int64s x y = block512_to_int64s (Vec512.xor (int64s_to_block512 x) (int64s_to_block512 y)).
-Proof.
+(* Lemma xor_int64s_is_xor_block512 : forall (x y : list Int64.int), *)
+(*   xor_lists_of_int64s x y = block512_to_int64s (Vec512.xor (int64s_to_block512 x) (int64s_to_block512 y)). *)
+(* Proof. *)
   (* intros x y x_content y_content i H. *)
   (* unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks. unfold LSB. *)
   (* induction i. *)
   (* - unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks. *)
-Admitted.
+(* Admitted. *)
 
 Lemma body_sumarray :
   semax_body Vprog [] f_streebog_xor streebog_xor_spec.
@@ -162,7 +157,6 @@ Proof.
   assert (Zlength (block512_to_int64s x_content) = 8) by reflexivity.
   assert (Zlength (block512_to_int64s y_content) = 8) by reflexivity.
   assert (Zlength (block512_to_int64s z_content) = 8) by reflexivity.
-  unfold MORE_COMMANDS, abbreviate.
   do 24 forward.
   entailer!.
   (* rewrite <- xor_block512_is_xor_int64s. *)
