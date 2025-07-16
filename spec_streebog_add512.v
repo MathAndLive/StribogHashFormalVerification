@@ -8,12 +8,6 @@ Require Import functional_spec.
 Import ListNotations.
 
 (*
-struct streebog_uint512 {
-	__le64 qword[8];
-};
-
-typedef unsigned long long u64;
-
 void streebog_add512(const struct streebog_uint512 *x,
 			    const struct streebog_uint512 *y,
 			    struct streebog_uint512 *r)
@@ -65,3 +59,12 @@ Definition streebog_add512_spec :=
             (map Vlong (block512_to_int64s y_content)) y;
          field_at sh_w t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s (Vec512.add x_content y_content))) r).
+
+Lemma body_add_512 :
+  semax_body Vprog [] f_streebog_add512 streebog_add512_spec.
+Proof.
+  start_function.
+  forward.
+  autorewrite with norm.
+
+Admitted.
