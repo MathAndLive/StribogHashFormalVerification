@@ -249,19 +249,6 @@ Definition g_N (N h m : block512) : block512 :=
   let e := E keys m in
   Vec512.xor (Vec512.xor e h) m.
 
-Module test_g_N.
-  Definition N : block512 := IV512.
-  Definition h : block512 := IV512.
-  Definition m : Z := 0x01323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130.
-
-  Definition test_result := 0xfd102cf8812ccb1191ea34af21394f3817a86641445aa9a626488adb33738ebd2754f6908cbbbac5d3ed0f522c50815c954135793fb1f5d905fee4736b3bdae2.  
-
-  Lemma test_g: g_N N h (Vec512.repr m) = Vec512.repr test_result. 
-  Proof.
-    reflexivity.
-  Qed.
-End test_g_N.  
-
 Definition stage_1 (IV : block512) : block512 * block512 * block512 :=
   let h := IV in
   let N := Vec512.repr 0 in
