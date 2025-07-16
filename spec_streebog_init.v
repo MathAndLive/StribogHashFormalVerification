@@ -8,12 +8,19 @@ Require Import functional_spec.
 Import ListNotations.
 
 
+(* void *shash_desc_ctx(struct shash_desc *desc)
+{
+	return desc->__ctx;
+} *)
+
+
 Definition t_shash_desc := Tstruct _shash_desc noattr.
 Definition t_streebog_state := Tstruct _streebog_state noattr.
+Definition t_crypto_shash := Tstruct _crypto_shash noattr.
 
 Definition shash_desc_ctx_spec :=
   DECLARE _shash_desc_ctx
-  WITH sh : share, desc : val, ctx : val, tfm : val, ctx_content : block512
+  WITH sh : share, desc : val, ctx : val, tfm : val, ctx_content : block512 
   PRE [ tptr t_shash_desc]
     PROP (writable_share sh)
     PARAMS (desc)
@@ -21,6 +28,7 @@ Definition shash_desc_ctx_spec :=
           field_at sh t_shash_desc (DOT ___ctx) (map Vlong (block512_to_int64s ctx_content)) desc * 
           field_at sh t_shash_desc (DOT _tfm) tfm desc;
           data_at sh (tarray (tptr tvoid) 0) (map Vlong (block512_to_int64s ctx_content)) ctx
+
     )
   POST [ tptr tvoid ]
     PROP ()
@@ -36,6 +44,8 @@ Lemma body_shash_desc_ctx :
 Proof.
   start_function.
   forward.
+  entailer!.
+  Compute sizeof (tptr tvoid).
 
 Admitted.
 
@@ -54,6 +64,8 @@ static int streebog_init(struct shash_desc *desc)
 	return 0;
 }
 *)
+
+
 
 Definition streebog_init_spec := 
   DECLARE _streebog_init 
@@ -88,12 +100,19 @@ Definition streebog_init_spec :=
              (map Vlong (block512_to_int64s Vec512.zero)) ctx * field_at sh t_streebog_state (DOT _hash)
              (map Vlong (block512_to_int64s Vec512.zero)) ctx).
 
-Lemma body_reverse :
-  semax_body Vprog [] f_streebog_init streebog_init_spec.
+
+
+
+Definition Gprog : funspecs :=
+  ltac:(with_library prog [shash_desc_ctx_spec; streebog_init_spec]).
+
+
+Lemma body_streebog_init :
+  semax_body Vprog Gprog f_streebog_init streebog_init_spec.
 Proof.
   start_function.
   Intros.
-  forward_call(desc).
+  forward_call(sh, desc, ctx, tfm, ctx_content).
 
 Qed.
 
