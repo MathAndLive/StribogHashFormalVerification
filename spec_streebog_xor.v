@@ -150,7 +150,7 @@ Qed.
   (* unfold Z_to_int64s. *)
   (* unfold Z_to_chunks. *)
   (* Search (Vec512.xor). *)
-Admitted.
+(* Admitted. *)
 
 (* Lemma xor_int64s_is_xor_block512 : forall (x y : list Int64.int), *)
 (*   xor_lists_of_int64s x y = block512_to_int64s (Vec512.xor (int64s_to_block512 x) (int64s_to_block512 y)). *)
@@ -161,7 +161,7 @@ Admitted.
   (* - unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks. *)
 (* Admitted. *)
 
-Lemma body_sumarray :
+Lemma body_streebog_xor :
   semax_body Vprog [] f_streebog_xor streebog_xor_spec.
 Proof.
   start_function.
