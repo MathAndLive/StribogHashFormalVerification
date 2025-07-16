@@ -97,14 +97,6 @@ Lemma xor_repr_comm : forall x y,
 Proof.
 Admitted.
 
-Lemma shr_repr_comm : forall x,
-  Vec512.unsigned (Vec512.shr (Vec512.repr 64) x) =
-    Z.shiftr (Vec512.unsigned x) 64.
-Proof.
-Admitted.
-  (* Vec512.shr (Vec512.repr 64) = Vec512.repr (Vec512.shr x (64). *)
-(* Proof. *)
-(* Admitted. *)
 
 Lemma shiftr_xor : forall x y : block512,
   Z.shiftr (Vec512.unsigned (Vec512.xor x y)) 64 =
@@ -113,6 +105,8 @@ Lemma shiftr_xor : forall x y : block512,
       (Vec512.shr (Vec512.repr 64) y)).
 Proof.
   intros x y.
+  rewrite shiftr_unsigned_comm.
+  Search (Z.shiftr ?x).
 Admitted.
 
 (* Lemma xor_list_cons : forall (x y : Int64.int) (xs ys : list Int64.int), *)
