@@ -18,9 +18,6 @@ typedef unsigned long long __le64;
 #define STREEBOG256_DIGEST_SIZE	32
 #define STREEBOG512_DIGEST_SIZE	64
 #define STREEBOG_BLOCK_SIZE	64
-#define ARCH_SLAB_MINALIGN	16 
-#define crypto_shash_digestsize(tfm) STREEBOG512_DIGEST_SIZE
-#define __aligned(x) __attribute__((aligned(x)))
 
 // необходимо будет прописать тройки Хоара для них так, что вход равен выходу
 // оставляем так в предположении того, что работаем с little-endian машиной
