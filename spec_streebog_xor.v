@@ -79,7 +79,7 @@ Proof.
 Qed.
 
 Lemma shiftr_unsigned_comm : forall x,
-   Z.shiftr (Vec512.unsigned x) 64 = Vec512.unsigned (Vec512.shr (Vec512.repr 64) x).
+   Z.shiftr (Vec512.unsigned x) 64 = Vec512.unsigned (Vec512.shr x (Vec512.repr 64)).
 Proof.
   Search (Z.shiftr ?x).
 Admitted.
@@ -100,16 +100,18 @@ Proof.
 Admitted.
 
 
-Lemma shiftr_xor : forall x y : block512,
+Lemma Z_shiftr_Vec512_xor : forall x y : block512,
   Z.shiftr (Vec512.unsigned (Vec512.xor x y)) 64 =
     Vec512.unsigned (Vec512.xor
-      (Vec512.shr (Vec512.repr 64) x)
-      (Vec512.shr (Vec512.repr 64) y)).
+      (Vec512.shr x (Vec512.repr 64))
+      (Vec512.shr y (Vec512.repr 64))).
 Proof.
   intros x y.
-  rewrite shiftr_unsigned_comm.
-  Search (Z.shiftr ?x).
-Admitted.
+  rewrite <- 2!xor_unsigned_comm.
+  rewrite Z.shiftr_lxor.
+  rewrite 2!shiftr_unsigned_comm.
+  reflexivity.
+Qed.
 
 (* Lemma xor_list_cons : forall (x y : Int64.int) (xs ys : list Int64.int), *)
 (*   (Int64.xor x y) :: (xor_lists_of_int64s xs ys) = xor_lists_of_int64s (x::xs) (y::ys). *)
@@ -125,8 +127,8 @@ Proof.
   induction n as [| n' IHn']; intros x y. 
   - unfold Z_to_int64s; fold Z_to_int64s. reflexivity.
   - rewrite 3!Z_to_int64s_plus_one.
-    rewrite shiftr_xor.
-    rewrite <- (IHn' (Vec512.shr (Vec512.repr 64) x) (Vec512.shr (Vec512.repr 64) y)).
+    rewrite Z_shiftr_Vec512_xor.
+    rewrite <- (IHn' (Vec512.shr x (Vec512.repr 64)) (Vec512.shr y (Vec512.repr 64))).
     rewrite xor_list_cons. 
     rewrite 2!shiftr_unsigned_comm.
     rewrite xor_repr_comm.
@@ -135,10 +137,10 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma xor_block512_is_xor_int64s : forall (x y : block512),
-  xor_lists_of_int64s (block512_to_int64s x) (block512_to_int64s y) =
-    block512_to_int64s (Vec512.xor x y).
-Proof.
+(* Lemma xor_block512_is_xor_int64s : forall (x y : block512), *)
+(*   xor_lists_of_int64s (block512_to_int64s x) (block512_to_int64s y) = *)
+(*     block512_to_int64s (Vec512.xor x y). *)
+(* Proof. *)
   (* intros x y H1 H2. *)
   (* unfold xor_lists_of_int64s. *)
   (* unfold Vec512.xor. *)
@@ -168,8 +170,8 @@ Proof.
   assert (Zlength (block512_to_int64s z_content) = 8) by reflexivity.
   do 24 forward.
   entailer!.
-  rewrite <- xor_block512_is_xor_int64s.
-  (* unfold block512_to_int64s. *)
-  (* rewrite <- (Z_to_int64s_xor 8). *)
+  (* rewrite <- xor_block512_is_xor_int64s. *)
+  unfold block512_to_int64s.
+  rewrite <- (Z_to_int64s_xor 8).
   entailer!.
 Qed.
