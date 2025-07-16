@@ -39,10 +39,7 @@ Definition streebog_add512_spec :=
   PRE [tptr t_streebog_uint512_st, tptr t_streebog_uint512_st,
        tptr t_streebog_uint512_st]
        (* tptr - указатель на ... *)
-    PROP(readable_share sh_r; writable_share sh_w;
-         Zlength (block512_to_int64s x_content) = 8;
-         Zlength (block512_to_int64s y_content) = 8;
-         Zlength (block512_to_int64s r_content) = 8)
+    PROP(readable_share sh_r; writable_share sh_w)
     PARAMS (x; y; r) (* аргументы верифицируемой функции на C *)
     SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
             (map Vlong (block512_to_int64s x_content)) x;
@@ -64,7 +61,20 @@ Lemma body_add_512 :
   semax_body Vprog [] f_streebog_add512 streebog_add512_spec.
 Proof.
   start_function.
-  forward.
-  autorewrite with norm.
-
+  assert (Zlength (block512_to_int64s x_content) = 8) by reflexivity.
+  assert (Zlength (block512_to_int64s y_content) = 8) by reflexivity.
+  assert (Zlength (block512_to_int64s r_content) = 8) by reflexivity.
+  forward.  
+  forward_for_simple_bound 8 (EX i:Z, 
+  PROP ((* empty *)) 
+  LOCAL (temp _carry (Vlong (Int64.repr (Int.signed (Int.repr 0)))); (* carry должен быть равен функции доп. бита над list int64 подсписком *) 
+   temp _x x; temp _y y;
+   temp _r r) (* r должен быть равен функции суммы подсписков *)
+  SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
+          (map Vlong (block512_to_int64s x_content)) x;
+   field_at sh_r t_streebog_uint512_st (DOT _qword)
+     (map Vlong (block512_to_int64s y_content)) y;
+   field_at sh_w t_streebog_uint512_st (DOT _qword)
+     (map Vlong (block512_to_int64s r_content)) r))%assert.
+  
 Admitted.
