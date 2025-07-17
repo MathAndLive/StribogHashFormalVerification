@@ -9,31 +9,37 @@ Import ListNotations.
 
 Definition tuint512 := Tstruct _streebog_uint512 noattr.
 
+Definition block512_to_chunks (b : block512) : list Z :=
+  Z_to_chunks 64 8 (Vec512.unsigned b).
+
+Definition block512_to_vals (b : block512) : list val :=
+  map (fun x => Vlong (Int64.repr x)) (block512_to_chunks b).
+
 Definition streebog_xlps_spec :=
   DECLARE _streebog_xlps
-  WITH   sh_r : share, sh_w : share,
-         x : val, y : val, z : val,
-         x_content : block512, y_content : block512, z_content : block512
+  WITH sh_r : share, sh_w : share,
+       x : val, y : val, z : val,
+       x_content : block512, y_content : block512, z_content : block512
   PRE [tptr tuint512, tptr tuint512, tptr tuint512]
     PROP(readable_share sh_r; writable_share sh_w)
     PARAMS (x; y; z)
-    SEP (field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x;
-         field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y;
-         field_at sh_w tuint512 (DOT _qword) (map Vlong (block512_to_int64s z_content)) z)
+    SEP (data_at sh_r tuint512 (block512_to_vals x_content) x;
+         data_at sh_r tuint512 (block512_to_vals y_content) y;
+         data_at_ sh_w tuint512 z)
   POST [tvoid]
     PROP()
     RETURN()
-    SEP (field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x;
-         field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y;
-         field_at sh_w tuint512 (DOT _qword)
-           (map Vlong (block512_to_int64s (LPSX x_content y_content))) z).
+    SEP (data_at sh_r tuint512 (block512_to_vals x_content) x;
+         data_at sh_r tuint512 (block512_to_vals y_content) y;
+         data_at sh_w tuint512 (block512_to_vals (LPSX x_content y_content)) z).
 
-Definition inv_data_mem (sh : share) (i : Z) (x y z : val) (x_content y_content z_content : block512) : mpred :=
-  (field_at sh tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x) &&
-   field_at sh tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y &&
-   (field_at sh tuint512 (DOT _qword)
-      (map Vlong ((sublist 0 i (block512_to_int64s (LPSX x_content y_content)) ++
-      (sublist (i + 1) 8 (block512_to_int64s z_content))))) z).
+Definition inv_data_mem (i : Z) (x y z : val) (x_content y_content z_content : block512) : mpred :=
+  (data_at Ews tuint512 (block512_to_vals x_content) x &&
+   data_at Ews tuint512 (block512_to_vals x_content) y &&
+   data_at Ews tuint512 (block512_to_vals (int64s_to_block512
+      (sublist 0 i (block512_to_int64s (LPSX x_content y_content)) ++
+                            (sublist i 8 (block512_to_int64s z_content))))) z).
+
 
 Lemma body_streebog_xlps :
   semax_body Vprog [] f_streebog_xlps streebog_xlps_spec.
@@ -52,11 +58,13 @@ Proof.
           0 <= j <  i ;
           nth (Z.to_nat j) data default =
             nth (Z.to_nat j) (block512_to_int64s (LPSX x_content y_content)) Int64.zero)
-    LOCAL( )
-    SEP()
+    LOCAL ( )
+    SEP (inv_data_mem i x y z x_content y_content z_content)
     ).
   - forward.
     entailer!.
-  hint.
+    lia .
+    hint.
+  - hint.
 
 Qed.
