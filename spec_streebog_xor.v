@@ -58,7 +58,7 @@ Lemma xor_unsigned_comm : forall x y,
 Proof.
 Admitted.
 
-Lemma testbit_ge_64 : forall (w n : Z) (k : nat),
+Lemma testbit_ge_k : forall (w n : Z) (k : nat),
   n >= Z.of_nat k -> Z.testbit (w mod two_power_nat k) n = false.
 Proof.
   intros w n k H0.
@@ -92,7 +92,7 @@ Proof.
     --- assumption.
     --- assumption.
     --- assumption.
-  - rewrite 3!testbit_ge_64. 
+  - rewrite 3!testbit_ge_k. 
     reflexivity. 
     apply Z.le_ge; assumption.
     apply Z.le_ge; assumption.
