@@ -4,6 +4,9 @@ Require Import streebog_generic.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Require Import functional_spec.
+Require Import Zdiv.
+Require Import ZArith.
+Open Scope Z_scope.
 
 Import ListNotations.
 
@@ -76,11 +79,70 @@ Lemma xor_list_cons : forall (x y : Int64.int) (xs ys : list Int64.int),
 Proof.
 Admitted.
 
-Lemma shiftr_unsigned_comm : forall x,
+Lemma shiftr_unsigned_comm : forall x, 0 <= Vec512.unsigned x <= Vec512.max_signed ->
    Z.shiftr (Vec512.unsigned x) 64 = Vec512.unsigned (Vec512.shr x (Vec512.repr 64)).
 Proof.
-  Search (Z.shiftr ?x).
-Admitted.
+  intros x H.
+  unfold Vec512.shr.
+  rewrite Vec512.signed_eq_unsigned.
+  -
+    pose proof (Vec512.unsigned_repr 64) as H_unsigned_repr.
+    rewrite H_unsigned_repr.
+    +  pose proof (Vec512.unsigned_repr (Z.shiftr (Vec512.unsigned x) 64)) as H_unsigned_repr2.
+       rewrite H_unsigned_repr2.
+       * reflexivity.
+       * assert (0 <= Z.shiftr (Vec512.unsigned x) 64 <= Vec512.max_unsigned).
+        {
+          split.
+          - rewrite Z.shiftr_nonneg. apply H.
+          - simpl.
+              assert (Z.shiftr (Vec512.unsigned x) 64 <= Vec512.max_signed). 
+              {
+                assert (forall a n, 0 <= a -> 0 <= n -> Z.shiftr a n <= a).
+                { 
+                  intros a n Ha Hn.
+                  unfold Z.shiftr.
+                  unfold Z.shiftl.
+                  destruct n.
+                  - simpl. lia.
+                  - simpl.   induction p using Pos.peano_ind. 
+                            + simpl. replace (Z.div2 a) with (Z.shiftr a 1) by reflexivity.
+                            unfold Z.shiftr. unfold Z.shiftl. simpl. rewrite Z.div2_div.
+                            pose proof (Z.mul_div_le a 2). lia.
+                            + apply Z.le_trans with (m := Pos.iter Z.div2 a p). 
+                             * pose proof (Pos.iter_succ p Z Z.div2 a). rewrite H0. 
+                             assert (0 <= (Pos.iter Z.div2 a p)). 
+                             {
+                              pose proof (Z.div2_nonneg a). 
+                              induction p using Pos.peano_ind.
+                              - simpl. lia.
+                              - simpl. apply Pos.iter_invariant. 
+                                * intros x0. apply Z.div2_nonneg.
+                                * auto. 
+                             }
+                             rewrite Z.div2_div. pose proof (Z.mul_div_le (Pos.iter Z.div2 a p) 2). lia.
+                             * lia. 
+                  - simpl. lia. 
+                }
+                destruct H as [Hpos Hle].
+                apply Z.le_trans with (m := Vec512.unsigned x).
+                + apply H0. * apply Hpos. * lia.
+                + apply Hle. 
+              }
+              rewrite H0. unfold Vec512.max_unsigned.
+              unfold Vec512.max_signed. simpl. lia.
+        }
+        apply H0.
+    + assert (0 <= 64 <= Vec512.max_unsigned).
+      {
+        unfold Vec512.max_unsigned.
+        simpl.
+        lia.
+      }
+      apply H0.
+  - apply H.
+
+Qed.
 
 Lemma xor_unsigned_comm : forall x y,
   Z.lxor (Vec512.unsigned x) (Vec512.unsigned y) = Vec512.unsigned (Vec512.xor x y).
