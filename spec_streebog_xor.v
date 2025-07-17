@@ -102,7 +102,18 @@ Qed.
 Lemma xor_repr_comm : forall x y,
   Int64.xor (Int64.repr x) (Int64.repr y) = Int64.repr (Z.lxor x y).
 Proof.
-Admitted.
+  intros x y. 
+  specialize (Int64.same_bits_eq (Int64.xor (Int64.repr x) (Int64.repr y)) (Int64.repr (Z.lxor x y))) as H; lapply H; clear H.
+  - intros T; exact T.
+  - intros i H1. specialize (Int64.bits_xor (Int64.repr x) (Int64.repr y) i) as H2; lapply H2; clear H2.
+    -- intros H2; rewrite H2; clear H2. rewrite 3!Int64.testbit_repr.
+       --- rewrite <- Z.lxor_spec.
+           reflexivity.
+       --- assumption.
+       --- assumption.
+       --- assumption.
+    -- assumption.
+Qed.
 
 Lemma Z_to_chunks_xor : forall n m x y,
   map (uncurry Z.lxor) (combine (Z_to_chunks m n x) (Z_to_chunks m n y)) =
