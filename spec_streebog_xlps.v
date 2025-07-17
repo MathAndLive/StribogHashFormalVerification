@@ -28,6 +28,13 @@ Definition streebog_xlps_spec :=
          field_at sh_w tuint512 (DOT _qword)
            (map Vlong (block512_to_int64s (LPSX x_content y_content))) z).
 
+Definition inv_data_mem (sh : share) (i : Z) (x y z : val) (x_content y_content z_content : block512) : mpred :=
+  (field_at sh tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x) &&
+   field_at sh tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y &&
+   (field_at sh tuint512 (DOT _qword)
+      (map Vlong ((sublist 0 i (block512_to_int64s (LPSX x_content y_content)) ++
+      (sublist (i + 1) 8 (block512_to_int64s z_content))))) z).
+
 Lemma body_streebog_xlps :
   semax_body Vprog [] f_streebog_xlps streebog_xlps_spec.
 Proof.
