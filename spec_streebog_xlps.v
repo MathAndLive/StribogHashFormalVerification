@@ -28,12 +28,14 @@ Definition streebog_xlps_spec :=
          field_at sh_w tuint512 (DOT _qword)
            (map Vlong (block512_to_int64s (LPSX x_content y_content))) z).
 
-Definition inv_data_mem (sh : share) (i : Z) (x y z : val) (x_content y_content z_content : block512) : mpred :=
-  (field_at sh tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x) &&
-   field_at sh tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y &&
-   (field_at sh tuint512 (DOT _qword)
+Definition inv_data_mem (i : Z) (x y z : val) (x_content y_content z_content : block512) : mpred :=
+  (field_at Ews tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x) &&
+   field_at Ews tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y &&
+   (field_at Ews tuint512 (DOT _qword)
       (map Vlong ((sublist 0 i (block512_to_int64s (LPSX x_content y_content)) ++
       (sublist (i + 1) 8 (block512_to_int64s z_content))))) z).
+
+(* SEP (inv_data_mem i x y z x_content y_content z_content) *)
 
 Lemma body_streebog_xlps :
   semax_body Vprog [] f_streebog_xlps streebog_xlps_spec.
@@ -47,16 +49,20 @@ Proof.
 
   deadvars!.
   forward_loop
-   (EX i:Z, EX j:Z, EX data: list int64,
-    PROP (0 <= i <= 8 ;
-          0 <= j <  i ;
-          nth (Z.to_nat j) data default =
-            nth (Z.to_nat j) (block512_to_int64s (LPSX x_content y_content)) Int64.zero)
-    LOCAL( )
-    SEP()
+   (EX i,
+     PROP (0 <= i <= 8)
+     LOCAL (temp _i (Vint (Int.repr i));
+            temp _x x;
+            temp _y y;
+            temp _z z)
+      SEP (field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x)
     ).
   - forward.
     entailer!.
+    Exists 0.
+    entailer!.
+    + split. 
+
   hint.
 
 Qed.
