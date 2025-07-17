@@ -1,6 +1,7 @@
 From VST.floyd Require Import proofauto library.
 Require Import streebog_generic.
 
+
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Require Import functional_spec.
@@ -40,56 +41,6 @@ Qed.
 
 
 
-
-(* Definition shash_desc_ctx_spec :=
-  DECLARE _shash_desc_ctx
-  WITH sh : share, desc : val, ctx : val, tfm : val, ctx_content : block512 
-  PRE [ tptr t_shash_desc]
-    PROP (writable_share sh)
-    PARAMS (desc)
-    SEP (
-          field_at sh t_shash_desc (DOT ___ctx) (map Vlong (block512_to_int64s ctx_content)) desc * 
-          field_at sh t_shash_desc (DOT _tfm) tfm desc;
-          data_at sh (tarray (tptr tvoid) 0) (map Vlong (block512_to_int64s ctx_content)) ctx
-
-    )
-  POST [ tptr tvoid ]
-    PROP ()
-    RETURN (ctx)
-    SEP (
-            field_at sh t_shash_desc (DOT ___ctx) (map Vlong (block512_to_int64s ctx_content)) desc * 
-            field_at sh t_shash_desc (DOT _tfm) tfm desc;
-            data_at sh (tarray (tptr tvoid) 0) (map Vlong (block512_to_int64s ctx_content)) ctx
-    ).
-
-Lemma body_shash_desc_ctx :
-  semax_body Vprog [] f_shash_desc_ctx shash_desc_ctx_spec.
-Proof.
-  start_function.
-  forward.
-  entailer!.
-  Compute sizeof (tptr tvoid).
-
-Admitted. *)
-
-(*
-static int streebog_init(struct shash_desc *desc)
-{
-	struct streebog_state *ctx = shash_desc_ctx(desc);
-	unsigned int digest_size = crypto_shash_digestsize(desc->tfm);
-	unsigned int i;
-
-	memset(ctx, 0, sizeof(struct streebog_state));
-	for (i = 0; i < 8; i++) {
-		if (digest_size == STREEBOG256_DIGEST_SIZE)
-			ctx->h.qword[i] = cpu_to_le64(0x0101010101010101ULL);
-	}
-	return 0;
-}
-*)
-
-
-
 Definition streebog_init_spec := 
   DECLARE _streebog_init 
   WITH sh : share, desc : val, tfm : val
@@ -111,34 +62,10 @@ Definition streebog_init_spec :=
         field_at sh t_streebog_state (DOT _Sigma) (map Vlong (block512_to_int64s Vec512.zero)) (offset_val (sizeof t_shash_desc) desc) * 
         field_at sh t_streebog_state (DOT _hash) (map Vlong (block512_to_int64s Vec512.zero)) (offset_val (sizeof t_shash_desc) desc)).
 
-  (* PRE [tptr t_shash_desc]
-    PROP(writable_share sh; digest_size = 64;
-         Zlength (block512_to_int64s hash_content) = 8;
-         Zlength (block512_to_int64s h_content) = 8;
-         Zlength (block512_to_int64s N_content) = 8;
-         Zlength (block512_to_int64s Sigma_content) = 8)
-    PARAMS (desc) 
-    SEP ( field_at sh t_shash_desc (DOT ___ctx) (map Vlong (block512_to_int64s ctx_content)) desc * 
-          field_at sh t_shash_desc (DOT _tfm) tfm desc;
-          data_at sh (tarray (tptr tvoid) 0) (map Vlong (block512_to_int64s ctx_content)) ctx;
-          field_at sh t_streebog_state (DOT _h)
-             (map Vlong (block512_to_int64s h_content)) ctx * field_at sh t_streebog_state (DOT _N)
-             (map Vlong (block512_to_int64s N_content)) ctx * field_at sh t_streebog_state (DOT _Sigma)
-             (map Vlong (block512_to_int64s Sigma_content)) ctx * field_at sh t_streebog_state (DOT _hash)
-             (map Vlong (block512_to_int64s hash_content)) ctx) *)
-  (* POST [ tint ]
-    PROP()
-    RETURN (Vint Int.zero)
-    SEP ( field_at sh t_shash_desc (DOT ___ctx) (map Vlong (block512_to_int64s ctx_content)) desc * 
-          field_at sh t_shash_desc (DOT _tfm) tfm desc;
-          data_at sh (tarray (tptr tvoid) 0) (map Vlong (block512_to_int64s ctx_content)) ctx;
-          field_at sh t_streebog_state (DOT _h)
-             (map Vlong (block512_to_int64s Vec512.zero)) ctx * field_at sh t_streebog_state (DOT _N)
-             (map Vlong (block512_to_int64s Vec512.zero)) ctx * field_at sh t_streebog_state (DOT _Sigma)
-             (map Vlong (block512_to_int64s Vec512.zero)) ctx * field_at sh t_streebog_state (DOT _hash)
-             (map Vlong (block512_to_int64s Vec512.zero)) ctx). *)
+(* void *memset(void *s, int c, size_t n); *)
 
-Definition memset_spec :=
+
+(* Definition memset_spec :=
   DECLARE _memset
    WITH sh : share, p: val, n: Z, c: int
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tint, 3%positive OF tuint ]
@@ -148,11 +75,29 @@ Definition memset_spec :=
        SEP (memory_block sh n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
-       SEP(data_at sh (tarray tuchar n) (repeat (Vint c) (Z.to_nat n)) p).
+       SEP(data_at sh (tarray tuchar n) (repeat (Vint c) (Z.to_nat n)) p). *)
 
+Definition memset_spec :=
+  DECLARE _memset
+   WITH sh : share, s: val, n: Z, c: Z
+   PRE [ tptr tvoid, tint, tuint ]
+       PROP (writable_share sh; 0 <= n <= Int.max_unsigned; isptr s)
+       PARAMS (s; Vint (Int.repr c); Vint (Int.repr n))
+       SEP (memory_block sh n s)
+    POST [ tptr tvoid ]
+       PROP()
+       RETURN(s)
+       SEP(data_at sh (tarray tuchar n) (repeat (Vint (Int.repr c)) (Z.to_nat n)) s).
+
+(* Lemma body_memset_spec :
+  semax_body Vprog [] f_shash_desc_ctx shash_desc_ctx_spec.
+Proof.
+  start_function.
+  forward.
+Qed. *)
 
 Definition Gprog : funspecs :=
-  ltac:(with_library prog [shash_desc_ctx_spec; streebog_init_spec]).
+  ltac:(with_library prog [shash_desc_ctx_spec; streebog_init_spec; memset_spec]).
 
 
 Lemma body_streebog_init :
@@ -163,6 +108,7 @@ Proof.
   forward_call(desc).
   forward.
   hint.
+  forward_call((offset_val (sizeof t_shash_desc) desc) 0 (sizeof t_streebog_state))
   Check memset.
   (* forward_call (sh, offset_val (sizeof t_shash_desc) desc, sizeof t_streebog_state). *)
 
