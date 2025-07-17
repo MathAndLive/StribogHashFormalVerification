@@ -1,11 +1,8 @@
 From VST.floyd Require Import proofauto library.
-Require Import streebog_generic.
+Require Import streebog_generic functional_spec.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Require Import functional_spec.
-
-Import ListNotations.
 
 (*
 struct streebog_uint512 {
@@ -28,67 +25,41 @@ void streebog_xor(const struct streebog_uint512 *x,
 *)
 
 Definition t_streebog_uint512_st := Tstruct _streebog_uint512 noattr.
-Definition streebog_uint512_arr_length := 8.
 
-Check _streebog_uint512.
-Print t_streebog_uint512_st.
+Definition block512_to_chunks (b : block512) : list Z :=
+  Z_to_chunks 64 8 (Vec512.unsigned b).
+
+Definition block512_to_vals (b : block512) : list val :=
+  map (fun x => Vlong (Int64.repr x)) (block512_to_chunks b).
 
 Definition streebog_xor_spec :=
   DECLARE _streebog_xor (* название верифицируемой функции из сгенерированного файла .v*)
   WITH sh_r : share, sh_w : share, x : val, y : val, z : val,
-            x_content : block512, y_content : block512, z_content : block512
-            (* share = тип доступа к памяти: read/write *)
+       x_content : block512, y_content : block512, z_content : block512
+       (* share = тип доступа к памяти: read/write *)
   PRE [tptr t_streebog_uint512_st, tptr t_streebog_uint512_st,
        tptr t_streebog_uint512_st]
        (* tptr - указатель на ... *)
     PROP(readable_share sh_r; writable_share sh_w)
     PARAMS (x; y; z) (* аргументы верифицируемой функции на C *)
-    SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s x_content)) x;
-         field_at sh_r t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s y_content)) y;
-         field_at sh_w t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s z_content)) z)
+    SEP (data_at sh_r t_streebog_uint512_st (block512_to_vals x_content) x;
+         data_at sh_r t_streebog_uint512_st (block512_to_vals y_content) y;
+         data_at_ sh_w t_streebog_uint512_st z)
   POST [tvoid]
     PROP()
     RETURN()
-    SEP (field_at sh_r t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s x_content)) x;
-         field_at sh_r t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s y_content)) y;
-         field_at sh_w t_streebog_uint512_st (DOT _qword)
-            (map Vlong (block512_to_int64s (Vec512.xor x_content y_content))) z).
-
-Definition xor_lists_of_int64s (l1 l2 : list Int64.int) : list Int64.int :=
-  map (fun e => Int64.xor (fst e) (snd e)) (combine l1 l2).
-
-Lemma Z_to_int64s_plus_one : forall n b,
-  Z_to_int64s (S n) (Vec512.unsigned b) =
-    Int64.repr (LSB 64 (Vec512.unsigned b)) ::
-      Z_to_int64s n (Z.shiftr (Vec512.unsigned b) 64).
-Proof.
-  reflexivity.
-Qed.
-
-Lemma xor_list_cons : forall (x y : Int64.int) (xs ys : list Int64.int),
-  xor_lists_of_int64s (x::xs) (y::ys) =
-    (Int64.xor x y) :: xor_lists_of_int64s xs ys.
-Proof.
-Admitted.
-
-Lemma shiftr_unsigned_comm : forall x,
-   Z.shiftr (Vec512.unsigned x) 64 = Vec512.unsigned (Vec512.shr (Vec512.repr 64) x).
-Proof.
-  Search (Z.shiftr ?x).
-Admitted.
+    SEP (data_at sh_r t_streebog_uint512_st (block512_to_vals x_content) x;
+         data_at sh_r t_streebog_uint512_st (block512_to_vals y_content) y;
+         data_at sh_w t_streebog_uint512_st
+            (block512_to_vals (Vec512.xor x_content y_content)) z).
 
 Lemma xor_unsigned_comm : forall x y,
   Z.lxor (Vec512.unsigned x) (Vec512.unsigned y) = Vec512.unsigned (Vec512.xor x y).
 Proof.
 Admitted.
 
-Lemma xor_LSB_comm : forall x y,
-  Z.lxor (LSB 64 x) (LSB 64 y) = LSB 64 (Z.lxor x y).
+Lemma xor_LSB_comm : forall m x y,
+  Z.lxor (LSB m x) (LSB m y) = LSB m (Z.lxor x y).
 Proof.
 Admitted.
 
@@ -97,77 +68,24 @@ Lemma xor_repr_comm : forall x y,
 Proof.
 Admitted.
 
-
-Lemma shiftr_xor : forall x y : block512,
-  Z.shiftr (Vec512.unsigned (Vec512.xor x y)) 64 =
-    Vec512.unsigned (Vec512.xor
-      (Vec512.shr (Vec512.repr 64) x)
-      (Vec512.shr (Vec512.repr 64) y)).
+Lemma Z_to_chunks_xor : forall n m x y,
+  map (uncurry Z.lxor) (combine (Z_to_chunks m n x) (Z_to_chunks m n y)) =
+  Z_to_chunks m n (Z.lxor x y).
 Proof.
-  intros x y.
-  rewrite shiftr_unsigned_comm.
-  Search (Z.shiftr ?x).
-Admitted.
-
-(* Lemma xor_list_cons : forall (x y : Int64.int) (xs ys : list Int64.int), *)
-(*   (Int64.xor x y) :: (xor_lists_of_int64s xs ys) = xor_lists_of_int64s (x::xs) (y::ys). *)
-(* Proof. *)
-(* Admitted. *)
-
-Lemma Z_to_int64s_xor : forall n x y,
-  xor_lists_of_int64s (Z_to_int64s n (Vec512.unsigned x))
-    (Z_to_int64s n (Vec512.unsigned y)) =
-  Z_to_int64s n (Vec512.unsigned (Vec512.xor x y)).
-Proof.
-  intros n.
-  induction n as [| n' IHn']; intros x y. 
-  - unfold Z_to_int64s; fold Z_to_int64s. reflexivity.
-  - rewrite 3!Z_to_int64s_plus_one.
-    rewrite shiftr_xor.
-    rewrite <- (IHn' (Vec512.shr (Vec512.repr 64) x) (Vec512.shr (Vec512.repr 64) y)).
-    rewrite xor_list_cons. 
-    rewrite 2!shiftr_unsigned_comm.
-    rewrite xor_repr_comm.
-    rewrite xor_LSB_comm.
-    rewrite xor_unsigned_comm.
-    reflexivity.
+   induction n; intros m x y; simpl.
+  - reflexivity.
+  - now rewrite <- xor_LSB_comm, Z.shiftr_lxor, IHn.
 Qed.
 
-Lemma xor_block512_is_xor_int64s : forall (x y : block512),
-  xor_lists_of_int64s (block512_to_int64s x) (block512_to_int64s y) =
-    block512_to_int64s (Vec512.xor x y).
-Proof.
-  (* intros x y H1 H2. *)
-  (* unfold xor_lists_of_int64s. *)
-  (* unfold Vec512.xor. *)
-  (* unfold Vec512.unsigned. *)
-  (* unfold Vec512.repr. *)
-  (* unfold block512_to_int64s. *)
-  (* unfold Z_to_int64s. *)
-  (* unfold Z_to_chunks. *)
-  (* Search (Vec512.xor). *)
-Admitted.
-
-(* Lemma xor_int64s_is_xor_block512 : forall (x y : list Int64.int), *)
-(*   xor_lists_of_int64s x y = block512_to_int64s (Vec512.xor (int64s_to_block512 x) (int64s_to_block512 y)). *)
-(* Proof. *)
-  (* intros x y x_content y_content i H. *)
-  (* unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks. unfold LSB. *)
-  (* induction i. *)
-  (* - unfold block512_to_int64s. unfold Z_to_int64s. unfold Z_to_chunks. *)
-(* Admitted. *)
-
-Lemma body_sumarray :
+Lemma body_streebog_xor :
   semax_body Vprog [] f_streebog_xor streebog_xor_spec.
 Proof.
   start_function.
-  assert (Zlength (block512_to_int64s x_content) = 8) by reflexivity.
-  assert (Zlength (block512_to_int64s y_content) = 8) by reflexivity.
-  assert (Zlength (block512_to_int64s z_content) = 8) by reflexivity.
+  unfold block512_to_vals.
+  assert (Zlength (block512_to_chunks x_content) = 8) by reflexivity.
+  assert (Zlength (block512_to_chunks y_content) = 8) by reflexivity.
   do 24 forward.
-  entailer!.
-  rewrite <- xor_block512_is_xor_int64s.
-  (* unfold block512_to_int64s. *)
-  (* rewrite <- (Z_to_int64s_xor 8). *)
+  unfold block512_to_vals, block512_to_chunks.
+  rewrite !xor_repr_comm, <- xor_unsigned_comm, <- Z_to_chunks_xor.
   entailer!.
 Qed.
