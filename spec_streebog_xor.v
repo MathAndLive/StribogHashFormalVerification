@@ -58,15 +58,62 @@ Lemma xor_unsigned_comm : forall x y,
 Proof.
 Admitted.
 
-Lemma xor_LSB_comm : forall m x y,
+Lemma testbit_ge_k : forall (w n : Z) (k : nat),
+  n >= Z.of_nat k -> Z.testbit (w mod two_power_nat k) n = false.
+Proof.
+  intros w n k H0.
+  specialize (Z.testbit_mod_pow2 w (Z.of_nat k) n); intros H1. 
+  lapply H1.
+  - clear H1; intros H2.  
+    assert (P: two_power_nat k = 2 ^ (Z.of_nat k)) by apply two_power_nat_equiv; rewrite P; clear P.
+    rewrite H2; clear H2. rewrite Bool.andb_false_iff. left. specialize (Zaux.Zlt_bool_false n (Z.of_nat k)); intros H3.
+    lapply H3.
+    + lia.
+    + lia.
+  - lia. 
+Qed.
+
+Lemma xor_LSB_comm : forall (m : nat) (x y : Z),
   Z.lxor (LSB m x) (LSB m y) = LSB m (Z.lxor x y).
 Proof.
-Admitted.
+  intros m x y.
+  unfold LSB.
+  rewrite 3!Zbits.Z_mod_two_p_eq. 
+  rewrite <- Z.bits_inj_iff. 
+  unfold Z.eqf.
+  intros n.
+  rewrite Z.lxor_spec.
+  specialize (Z.lt_ge_cases n (Z.of_nat m)).
+  intros H. destruct H.
+  - assert (P: two_power_nat m = 2 ^ (Z.of_nat m)) by apply two_power_nat_equiv; rewrite P; clear P.
+    rewrite 3!Z.mod_pow2_bits_low.
+    --- rewrite <- Z.lxor_spec. 
+        reflexivity.
+    --- assumption.
+    --- assumption.
+    --- assumption.
+  - rewrite 3!testbit_ge_k. 
+    reflexivity. 
+    apply Z.le_ge; assumption.
+    apply Z.le_ge; assumption.
+    apply Z.le_ge; assumption.
+Qed.
 
 Lemma xor_repr_comm : forall x y,
   Int64.xor (Int64.repr x) (Int64.repr y) = Int64.repr (Z.lxor x y).
 Proof.
-Admitted.
+  intros x y. 
+  specialize (Int64.same_bits_eq (Int64.xor (Int64.repr x) (Int64.repr y)) (Int64.repr (Z.lxor x y))) as H; lapply H; clear H.
+  - intros T; exact T.
+  - intros i H1. specialize (Int64.bits_xor (Int64.repr x) (Int64.repr y) i) as H2; lapply H2; clear H2.
+    -- intros H2; rewrite H2; clear H2. rewrite 3!Int64.testbit_repr.
+       --- rewrite <- Z.lxor_spec.
+           reflexivity.
+       --- assumption.
+       --- assumption.
+       --- assumption.
+    -- assumption.
+Qed.
 
 Lemma Z_to_chunks_xor : forall n m x y,
   map (uncurry Z.lxor) (combine (Z_to_chunks m n x) (Z_to_chunks m n y)) =
