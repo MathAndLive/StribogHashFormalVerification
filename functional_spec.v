@@ -109,8 +109,7 @@ Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
 Definition int64s_to_block512 (il: list int64): block512 :=
   Vec512.repr (int64s_to_Z 8 il).
 
-
-Definition pi' : list byte := map Byte.repr
+Definition pi'Z : list Z :=
     [
         252; 238; 221; 17; 207; 110; 49; 22; 251; 196; 250; 218; 35; 197; 4; 77;
         233; 119; 240; 219; 147; 46; 153; 186; 23; 54; 241; 187; 20; 205; 95; 193;
@@ -129,6 +128,8 @@ Definition pi' : list byte := map Byte.repr
         32; 113; 103; 164; 45; 43; 9; 91; 203; 155; 37; 208; 190; 229; 108; 82;
         89; 166; 116; 210; 230; 244; 180; 192; 209; 102; 175; 194; 57; 75; 99; 182
     ].
+
+Definition pi' : list byte := map Byte.repr pi'Z.
 
     (* применение функции pi *)
 Definition pi (il: list byte) :=
@@ -286,3 +287,40 @@ Definition H512 (M : bits) : block512 :=
   let '(h, N, Sigma) := (stage_1 IV512) in
   let '(h', N', Sigma', M') := (stage_2 h N Sigma M) in
   stage_3 h' N' Sigma' M'.
+<<<<<<< HEAD
+=======
+
+Fixpoint bit_rec (j : Z) (indices : list Z) : list Z :=
+  match indices with
+  | nil => nil
+  | x :: xs => if Z.testbit j x
+               then x :: bit_rec j xs
+               else bit_rec j xs
+  end.
+
+Definition bit (j : Z) : list Z := bit_rec j [0; 1; 2; 3; 4; 5; 6; 7]. (* позиции, на которых бит равен единице *)
+
+Definition nthi_int64 (il: list int64) (t: Z) : int64 :=
+  nth (Z.to_nat t) il default.
+
+Definition tableLPS_i_j (i : Z) (j : Z) : int64 := (* i = 0, ... , 7 ; j = 0, ... 255 *)
+  fold_right Int64.xor (Int64.repr 0) (map (fun k => (nthi_int64 A (63 - 8 * i - k))) (bit (nthi_Z pi'Z j))). 
+
+Definition ith_byte (x : int64) (i : Z) : Z :=
+  nthi_Z (Z_to_chunks 8 8 (Int64.unsigned x)) i.
+
+Definition LPS_opt (b : block512) : block512 :=
+  let l := block512_to_int64s b in
+  int64s_to_block512 (
+  map (
+    fun k => fold_right Int64.xor (Int64.repr 0) (
+      map (
+        fun i => tableLPS_i_j i (ith_byte (nthi_int64 l i) k)
+        ) 
+      [0; 1; 2; 3; 4; 5; 6; 7]
+      )
+    ) 
+    [0; 1; 2; 3; 4; 5; 6; 7]
+  ).
+
+>>>>>>> main
