@@ -39,6 +39,17 @@ Proof.
   forward.
 Qed.
 
+Definition crypto_shash_digestsize_spec :=
+  DECLARE _crypto_shash_digestsize
+  WITH sh: share, tfm: val, desc: val
+  PRE [tptr t_crypto_shash]
+    PROP (isptr tfm)
+    PARAMS (tfm)
+    SEP (field_at sh t_shash_desc (DOT _tfm) tfm desc)
+  POST [tuint]
+    PROP ()
+    RETURN (Vint (Int.repr 64))
+    SEP (field_at sh t_shash_desc (DOT _tfm) tfm desc).
 
 
 Definition streebog_init_spec := 
@@ -96,8 +107,10 @@ Proof.
   forward.
 Qed. *)
 
+
+
 Definition Gprog : funspecs :=
-  ltac:(with_library prog [shash_desc_ctx_spec; streebog_init_spec; memset_spec]).
+  ltac:(with_library prog [shash_desc_ctx_spec; streebog_init_spec; memset_spec; crypto_shash_digestsize_spec]).
 
 
 Lemma body_streebog_init :
@@ -107,8 +120,9 @@ Proof.
   Intros.
   forward_call(desc).
   forward.
+  forward_call(sh, tfm, desc).
   hint.
-  forward_call((offset_val (sizeof t_shash_desc) desc) 0 (sizeof t_streebog_state))
+  forward_call((offset_val (sizeof t_shash_desc) desc), 0, (sizeof t_streebog_state)).
   Check memset.
   (* forward_call (sh, offset_val (sizeof t_shash_desc) desc, sizeof t_streebog_state). *)
 
