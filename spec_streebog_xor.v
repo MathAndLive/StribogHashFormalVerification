@@ -56,7 +56,73 @@ Definition streebog_xor_spec :=
 Lemma xor_unsigned_comm : forall x y,
   Z.lxor (Vec512.unsigned x) (Vec512.unsigned y) = Vec512.unsigned (Vec512.xor x y).
 Proof.
-Admitted.
+  intros x y.
+  rewrite <- Z.bits_inj_iff.
+  unfold Z.eqf.
+  intros n.
+  rewrite Z.lxor_spec.
+  specialize (Z.lt_ge_cases n 0) as [Hl0 | Hg0].
+  - destruct n.
+    -- discriminate.
+    -- discriminate.
+    -- reflexivity.
+  - specialize (Z.lt_ge_cases n Vec512.zwordsize) as [Hl | Hg].
+    -- specialize (Vec512.same_bits_eqm (Vec512.signed x) (Vec512.unsigned x) n) as L1.
+        lapply L1.
+        --- intros H1. clear L1.
+          specialize (Vec512.same_bits_eqm (Vec512.signed y) (Vec512.unsigned y) n) as L2.
+          lapply L2.
+          ---- intros H2. clear L2.
+             specialize (Vec512.same_bits_eqm (Vec512.signed (Vec512.xor x y)) (Vec512.unsigned (Vec512.xor x y)) n) as L3.
+             lapply L3.
+             ----- intros H3. clear L3.
+                 lapply H1.
+                 ------ intros N1. rewrite <- N1. clear N1. clear H1.
+                      lapply H2.
+                      ------- intros N2. rewrite <- N2. clear N2. clear H2.
+                            lapply H3.
+                            -------- intros N3. rewrite <- N3. clear N3. clear H3.
+                                   specialize (Vec512.bits_signed x n) as G1.
+                                   lapply G1.
+                                   + intros J1. rewrite J1. clear J1. clear G1.
+                                     destruct (zlt n Vec512.zwordsize) as [l1 | g1].
+                                     ++ clear l1. specialize (Vec512.bits_signed y n) as G2. 
+                                        lapply G2.
+                                        +++ intros J2. rewrite J2. clear J2. clear G2.
+                                            destruct (zlt n Vec512.zwordsize) as [l2 | g2].
+                                            ++++ clear l2. specialize (Vec512.bits_signed (Vec512.xor x y) n) as G3.
+                                                 lapply G3.
+                                                 +++++ intros J3. rewrite J3. clear J3. clear G3.
+                                                       destruct (zlt n Vec512.zwordsize) as [l3 | g3].
+                                                       ++++++ clear l3. specialize (Vec512.bits_xor x y n) as W.
+                                                              lapply W.
+                                                              * intros T. symmetry. exact T.
+                                                              * lia.
+                                                       ++++++ rewrite Z.ge_le_iff in g3. rewrite <- Z.nlt_ge in g3. contradiction (g3 Hl).
+                                                 +++++ exact Hg0.
+                                            ++++ rewrite Z.ge_le_iff in g2. rewrite <- Z.nlt_ge in g2. contradiction (g2 Hl).
+                                        +++ exact Hg0.
+                                     ++ rewrite Z.ge_le_iff in g1. rewrite <- Z.nlt_ge in g1. contradiction (g1 Hl).
+                                   + exact Hg0.
+                            -------- lia.
+                      ------- lia.
+                 ------ lia.
+             ----- apply Vec512.eqm_signed_unsigned.
+          ---- apply Vec512.eqm_signed_unsigned.
+        --- apply Vec512.eqm_signed_unsigned.
+    -- clear Hg0. simpl.
+       assert (U1 : x = Vec512.repr (Vec512.unsigned x)). { symmetry. apply Vec512.repr_unsigned. } rewrite U1. clear U1.
+       assert (U2 : y = Vec512.repr (Vec512.unsigned y)). { symmetry. apply Vec512.repr_unsigned. } rewrite U2. clear U2.
+       rewrite 2!Vec512.unsigned_repr_eq.
+       rewrite Vec512.Z_mod_modulus_eq.
+       rewrite Vec512.modulus_power.
+       rewrite two_p_equiv.
+       rewrite 3!Z.mod_pow2_bits_high.
+       + reflexivity.
+       + pose proof Vec512.wordsize_pos. lia.
+       + pose proof Vec512.wordsize_pos. lia.
+       + pose proof Vec512.wordsize_pos. lia.  
+Qed.
 
 Lemma testbit_ge_k : forall (w n : Z) (k : nat),
   n >= Z.of_nat k -> Z.testbit (w mod two_power_nat k) n = false.
