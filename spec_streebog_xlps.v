@@ -30,13 +30,14 @@ Definition streebog_xlps_spec :=
     PARAMS (x; y; z)
     SEP (data_at sh_r tuint512 (block512_to_vals x_content) x;
          data_at sh_r tuint512 (block512_to_vals y_content) y;
-         data_at_ sh_w tuint512 z)
+         data_at sh_w tuint512 z)
   POST [tvoid]
     PROP()
     RETURN()
-    SEP (data_at sh_r tuint512 (block512_to_vals x_content) x;
-         data_at sh_r tuint512 (block512_to_vals y_content) y;
-         data_at sh_w tuint512 (block512_to_vals (LPSX x_content y_content)) z).
+    SEP (field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s x_content)) x;
+         field_at sh_r tuint512 (DOT _qword) (map Vlong (block512_to_int64s y_content)) y;
+         field_at sh_w tuint512 (DOT _qword)
+           (map Vlong (block512_to_int64s (LPSX x_content y_content))) z).
 
 Definition inv_data_mem (i : Z) (x y z : val) (x_content y_content z_content : block512) : mpred :=
   (data_at Ews tuint512 (block512_to_vals x_content) x &&
@@ -101,18 +102,20 @@ Proof.
 
   deadvars!.
   forward_loop
-   (EX i:Z, EX j:Z, EX data: list int64,
-    PROP (0 <= i <= 8 ;
-          0 <= j <  i ;
-          nth (Z.to_nat j) data default =
-            nth (Z.to_nat j) (block512_to_int64s (LPSX x_content y_content)) Int64.zero)
-    LOCAL ( )
-    SEP (inv_data_mem i x y z x_content y_content z_content)
-    ).
-  - forward.
-    entailer!.
-    lia .
-    hint.
-  - hint.
+   (EX i:Z,
+    PROP (sublist 0 i (block512_to_int64s (LPSX x_content y_content)) =
+            sublist 0 i (block512_to_int64s z_content)))
+    LOCAL (temp _Ax Ax;
+            temp _r0 r0;
+            temp _r1 r1;
+            temp _r2 r2;
+            temp _r3 r3;
+            temp _r4 r4;
+            temp _r5 r5;
+            temp _r6 r6;
+            temp _r7 r7)
+    SEP (inv_data_mem i x y z x_content y_content z_content)).
+  - entailer!.
+  hint.
 
 Qed.
