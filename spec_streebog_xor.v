@@ -64,45 +64,25 @@ Proof.
   - apply Vec512.eqm_signed_unsigned.
 Qed.
 
+Lemma Zlxor_mod_pow2 : forall x y n, 0 <= n ->
+  (Z.lxor x y) mod 2 ^ n = Z.lxor (x mod 2 ^ n) (y mod 2 ^ n).
+Proof.
+  intros x y n Hn. apply Z.bits_inj'. intros i Hi.
+  rewrite Z.lxor_spec. destruct (Z_lt_le_dec i n).
+  - rewrite 3!Z.mod_pow2_bits_low by assumption.
+    apply Z.lxor_spec.
+  - now rewrite 3!Z.mod_pow2_bits_high.
+Qed.
+
 Lemma xor_unsigned_comm : forall x y,
   Z.lxor (Vec512.unsigned x) (Vec512.unsigned y) = Vec512.unsigned (Vec512.xor x y).
 Proof.
-  intros x y.
-  rewrite <- Z.bits_inj_iff.
-  unfold Z.eqf.
-  intros n.
-  rewrite Z.lxor_spec.
-  specialize (Z.lt_ge_cases n 0) as [Hl0 | Hg0].
-  - destruct n.
-    -- discriminate.
-    -- discriminate.
-    -- reflexivity.
-  - specialize (Z.lt_ge_cases n Vec512.zwordsize) as [Hlt512 | Hge512].
-    -- rewrite <- 3!signed_unsigned_bits.
-       --- rewrite 3!Vec512.bits_signed.
-           + destruct (zlt n Vec512.zwordsize) as [Plt512 | Pge512].
-             ++ rewrite Vec512.bits_xor.
-                +++ reflexivity.
-                +++ lia.
-             ++ contradiction (Pge512 Hlt512).
-           + exact Hg0.
-           + exact Hg0.
-           + exact Hg0.
-       --- lia.
-       --- lia.
-       --- lia.
-    -- clear Hg0. simpl.
-       rewrite <- (Vec512.repr_unsigned x).
-       rewrite <- (Vec512.repr_unsigned y).
-       rewrite 2!Vec512.unsigned_repr_eq.
-       rewrite Vec512.Z_mod_modulus_eq.       
-       rewrite Vec512.modulus_power.
-       rewrite two_p_equiv.
-       rewrite 3!Z.mod_pow2_bits_high.
-       + reflexivity.
-       + pose proof Vec512.wordsize_pos. lia.
-       + pose proof Vec512.wordsize_pos. lia.
-       + pose proof Vec512.wordsize_pos. lia.  
+  intros [x Hx] [y Hy]. simpl.
+  rewrite Vec512.Z_mod_modulus_eq.
+  unfold Vec512.modulus in *.
+  rewrite two_power_nat_equiv in *.
+  rewrite Zlxor_mod_pow2 by easy.
+  now rewrite 2!Zmod_small by lia.
 Qed.
 
 Lemma testbit_ge_k : forall (w n : Z) (k : nat),
