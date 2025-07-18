@@ -26,7 +26,7 @@ Definition streebog_xlps_spec :=
     PARAMS (x; y; z)
     SEP (data_at sh_r tuint512 (block512_to_vals x_content) x;
          data_at sh_r tuint512 (block512_to_vals y_content) y;
-         data_at_ sh_w tuint512 z)
+         data_at sh_w tuint512 (block512_to_vals z_content) z)
   POST [tvoid]
     PROP()
     RETURN()
@@ -34,10 +34,13 @@ Definition streebog_xlps_spec :=
          data_at sh_r tuint512 (block512_to_vals y_content) y;
          data_at sh_w tuint512 (block512_to_vals (LPSX x_content y_content)) z).
 
-Definition inv_data_mem (i : Z) (x y z : val) (x_content y_content z_content : block512) : mpred :=
-  (data_at Ews tuint512 (block512_to_vals x_content) x &&
-   data_at Ews tuint512 (block512_to_vals x_content) y &&
-   data_at Ews tuint512 (block512_to_vals (int64s_to_block512
+
+Definition inv_data_mem (sh :share) (x : val) (x_content : block512) : mpred :=
+  data_at sh tuint512 (block512_to_vals x_content) x.
+
+Definition inv_data_mem_res (sh :share) (i : Z) (z : val) (x_content y_content z_content : block512) : mpred :=
+  (
+   data_at sh tuint512 (block512_to_vals (int64s_to_block512
       (sublist 0 i (block512_to_int64s (LPSX x_content y_content)) ++
                             (sublist i 8 (block512_to_int64s z_content))))) z).
 
@@ -80,16 +83,26 @@ Proof.
 
   deadvars!.
   forward_loop
-   (EX i:Z, EX j:Z, EX data: list int64,
-    PROP (0 <= i <= 8 ;
-          0 <= j <  i ;
+   (EX i:Z,(*EX j:Z, EX data: list int64,*)
+   PROP( sublist 0 i (block512_to_int64s (LPSX x_content y_content)) =
+            sublist 0 i (block512_to_int64s z_content))
+    (* PROP (0 <= i <= 8 ;
+          0 <= j <=  i ;
           nth (Z.to_nat j) data default =
-            nth (Z.to_nat j) (block512_to_int64s (LPSX x_content y_content)) Int64.zero)
+            nth (Z.to_nat j) (block512_to_int64s (LPSX x_content y_content)) Int64.zero) *)
     LOCAL ( )
-    SEP (inv_data_mem i x y z x_content y_content z_content)
+    SEP (inv_data_mem sh_r x x_content; inv_data_mem sh_r y y_content; inv_data_mem_res sh_w i z x_content y_content z_content)
     ).
   - forward.
     entailer!.
+    Exists 0.
+    entailer!.
+    unfold inv_data_mem.
+    unfold inv_data_mem_res.
+    simpl.
+    autorewrite with sublist.
+    entailer!.
+    hint.
     lia .
     hint.
   - hint.
