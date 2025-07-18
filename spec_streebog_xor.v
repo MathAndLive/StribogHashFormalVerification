@@ -53,6 +53,17 @@ Definition streebog_xor_spec :=
          data_at sh_w t_streebog_uint512_st
             (block512_to_vals (Vec512.xor x_content y_content)) z).
 
+Lemma signed_unsigned_bits : forall (x : block512) (n : Z),
+  0 <= n < Vec512.zwordsize -> Z.testbit (Vec512.signed x) n = Z.testbit (Vec512.unsigned x) n.
+Proof.
+  intros x n.
+  specialize (Vec512.same_bits_eqm (Vec512.signed x) (Vec512.unsigned x) n).
+  intros H.
+  lapply H.
+  - intros T. exact T.
+  - apply Vec512.eqm_signed_unsigned.
+Qed.
+
 Lemma xor_unsigned_comm : forall x y,
   Z.lxor (Vec512.unsigned x) (Vec512.unsigned y) = Vec512.unsigned (Vec512.xor x y).
 Proof.
@@ -66,55 +77,25 @@ Proof.
     -- discriminate.
     -- discriminate.
     -- reflexivity.
-  - specialize (Z.lt_ge_cases n Vec512.zwordsize) as [Hl | Hg].
-    -- specialize (Vec512.same_bits_eqm (Vec512.signed x) (Vec512.unsigned x) n) as L1.
-        lapply L1.
-        --- intros H1. clear L1.
-          specialize (Vec512.same_bits_eqm (Vec512.signed y) (Vec512.unsigned y) n) as L2.
-          lapply L2.
-          ---- intros H2. clear L2.
-             specialize (Vec512.same_bits_eqm (Vec512.signed (Vec512.xor x y)) (Vec512.unsigned (Vec512.xor x y)) n) as L3.
-             lapply L3.
-             ----- intros H3. clear L3.
-                 lapply H1.
-                 ------ intros N1. rewrite <- N1. clear N1. clear H1.
-                      lapply H2.
-                      ------- intros N2. rewrite <- N2. clear N2. clear H2.
-                            lapply H3.
-                            -------- intros N3. rewrite <- N3. clear N3. clear H3.
-                                   specialize (Vec512.bits_signed x n) as G1.
-                                   lapply G1.
-                                   + intros J1. rewrite J1. clear J1. clear G1.
-                                     destruct (zlt n Vec512.zwordsize) as [l1 | g1].
-                                     ++ clear l1. specialize (Vec512.bits_signed y n) as G2. 
-                                        lapply G2.
-                                        +++ intros J2. rewrite J2. clear J2. clear G2.
-                                            destruct (zlt n Vec512.zwordsize) as [l2 | g2].
-                                            ++++ clear l2. specialize (Vec512.bits_signed (Vec512.xor x y) n) as G3.
-                                                 lapply G3.
-                                                 +++++ intros J3. rewrite J3. clear J3. clear G3.
-                                                       destruct (zlt n Vec512.zwordsize) as [l3 | g3].
-                                                       ++++++ clear l3. specialize (Vec512.bits_xor x y n) as W.
-                                                              lapply W.
-                                                              * intros T. symmetry. exact T.
-                                                              * lia.
-                                                       ++++++ rewrite Z.ge_le_iff in g3. rewrite <- Z.nlt_ge in g3. contradiction (g3 Hl).
-                                                 +++++ exact Hg0.
-                                            ++++ rewrite Z.ge_le_iff in g2. rewrite <- Z.nlt_ge in g2. contradiction (g2 Hl).
-                                        +++ exact Hg0.
-                                     ++ rewrite Z.ge_le_iff in g1. rewrite <- Z.nlt_ge in g1. contradiction (g1 Hl).
-                                   + exact Hg0.
-                            -------- lia.
-                      ------- lia.
-                 ------ lia.
-             ----- apply Vec512.eqm_signed_unsigned.
-          ---- apply Vec512.eqm_signed_unsigned.
-        --- apply Vec512.eqm_signed_unsigned.
+  - specialize (Z.lt_ge_cases n Vec512.zwordsize) as [Hlt512 | Hge512].
+    -- rewrite <- 3!signed_unsigned_bits.
+       --- rewrite 3!Vec512.bits_signed.
+           + destruct (zlt n Vec512.zwordsize) as [Plt512 | Pge512].
+             ++ rewrite Vec512.bits_xor.
+                +++ reflexivity.
+                +++ lia.
+             ++ contradiction (Pge512 Hlt512).
+           + exact Hg0.
+           + exact Hg0.
+           + exact Hg0.
+       --- lia.
+       --- lia.
+       --- lia.
     -- clear Hg0. simpl.
-       assert (U1 : x = Vec512.repr (Vec512.unsigned x)). { symmetry. apply Vec512.repr_unsigned. } rewrite U1. clear U1.
-       assert (U2 : y = Vec512.repr (Vec512.unsigned y)). { symmetry. apply Vec512.repr_unsigned. } rewrite U2. clear U2.
+       rewrite <- (Vec512.repr_unsigned x).
+       rewrite <- (Vec512.repr_unsigned y).
        rewrite 2!Vec512.unsigned_repr_eq.
-       rewrite Vec512.Z_mod_modulus_eq.
+       rewrite Vec512.Z_mod_modulus_eq.       
        rewrite Vec512.modulus_power.
        rewrite two_p_equiv.
        rewrite 3!Z.mod_pow2_bits_high.
@@ -130,55 +111,57 @@ Proof.
   intros w n k H0.
   specialize (Z.testbit_mod_pow2 w (Z.of_nat k) n); intros H1. 
   lapply H1.
-  - clear H1; intros H2.  
-    assert (P: two_power_nat k = 2 ^ (Z.of_nat k)) by apply two_power_nat_equiv; rewrite P; clear P.
-    rewrite H2; clear H2. rewrite Bool.andb_false_iff. left. specialize (Zaux.Zlt_bool_false n (Z.of_nat k)); intros H3.
-    lapply H3.
-    + lia.
-    + lia.
+  - clear H1; intros H2.
+    rewrite two_power_nat_equiv.
+    rewrite H2; clear H2. 
+    rewrite Bool.andb_false_iff. 
+    left.
+    rewrite Zaux.Zlt_bool_false.
+    + reflexivity.
+    + apply Z.ge_le.
+      exact H0.
   - lia. 
 Qed.
 
-Lemma xor_LSB_comm : forall (m : nat) (x y : Z),
-  Z.lxor (LSB m x) (LSB m y) = LSB m (Z.lxor x y).
+Lemma xor_LSB_comm : forall (j : nat) (x y : Z),
+  Z.lxor (LSB j x) (LSB j y) = LSB j (Z.lxor x y).
 Proof.
-  intros m x y.
+  intros j x y.
   unfold LSB.
   rewrite 3!Zbits.Z_mod_two_p_eq. 
   rewrite <- Z.bits_inj_iff. 
   unfold Z.eqf.
   intros n.
   rewrite Z.lxor_spec.
-  specialize (Z.lt_ge_cases n (Z.of_nat m)).
-  intros H. destruct H.
-  - assert (P: two_power_nat m = 2 ^ (Z.of_nat m)) by apply two_power_nat_equiv; rewrite P; clear P.
+  specialize (Z.lt_ge_cases n (Z.of_nat j)) as [Hnltj | Hngej].
+  - rewrite two_power_nat_equiv.
     rewrite 3!Z.mod_pow2_bits_low.
     --- rewrite <- Z.lxor_spec. 
         reflexivity.
-    --- assumption.
-    --- assumption.
-    --- assumption.
+    --- exact Hnltj.
+    --- exact Hnltj.
+    --- exact Hnltj.
   - rewrite 3!testbit_ge_k. 
-    reflexivity. 
-    apply Z.le_ge; assumption.
-    apply Z.le_ge; assumption.
-    apply Z.le_ge; assumption.
+    -- reflexivity.
+    -- apply Z.le_ge. exact Hngej.
+    -- apply Z.le_ge. exact Hngej.
+    -- apply Z.le_ge. exact Hngej. 
 Qed.
 
 Lemma xor_repr_comm : forall x y,
   Int64.xor (Int64.repr x) (Int64.repr y) = Int64.repr (Z.lxor x y).
 Proof.
-  intros x y. 
+  intros x y.
   specialize (Int64.same_bits_eq (Int64.xor (Int64.repr x) (Int64.repr y)) (Int64.repr (Z.lxor x y))) as H; lapply H; clear H.
   - intros T; exact T.
-  - intros i H1. specialize (Int64.bits_xor (Int64.repr x) (Int64.repr y) i) as H2; lapply H2; clear H2.
-    -- intros H2; rewrite H2; clear H2. rewrite 3!Int64.testbit_repr.
+  - intros i R. rewrite Int64.bits_xor.
+    -- rewrite 3!Int64.testbit_repr.
        --- rewrite <- Z.lxor_spec.
            reflexivity.
-       --- assumption.
-       --- assumption.
-       --- assumption.
-    -- assumption.
+       --- exact R.
+       --- exact R.
+       --- exact R.
+    -- exact R.
 Qed.
 
 Lemma Z_to_chunks_xor : forall n m x y,
