@@ -288,6 +288,9 @@ Definition H512 (M : bits) : block512 :=
   let '(h', N', Sigma', M') := (stage_2 h N Sigma M) in
   stage_3 h' N' Sigma' M'.
 
+
+(* Здесь начинается функциональная спецификация алгоритма оптимизированного подсчёта операции LPS *)
+
 Fixpoint bit_rec (j : Z) (indices : list Z) : list Z :=
   match indices with
   | nil => nil
@@ -299,7 +302,7 @@ Fixpoint bit_rec (j : Z) (indices : list Z) : list Z :=
 Definition bit (j : Z) : list Z := bit_rec j [0; 1; 2; 3; 4; 5; 6; 7]. (* позиции, на которых бит равен единице *)
 
 Definition nthi_int64 (il: list int64) (t: Z) : int64 :=
-  nth (Z.to_nat t) il default.
+  nth (Z.to_nat t) il Inhabitant_int64.
 
 Definition tableLPS_i_j (i : Z) (j : Z) : int64 := (* i = 0, ... , 7 ; j = 0, ... 255 *)
   fold_right Int64.xor (Int64.repr 0) (map (fun k => (nthi_int64 A (63 - 8 * i - k))) (bit (nthi_Z pi'Z j))). 
@@ -320,4 +323,44 @@ Definition LPS_opt (b : block512) : block512 :=
     ) 
     [0; 1; 2; 3; 4; 5; 6; 7]
   ).
+
+Lemma list_nth_equal : forall (l1 : list int64) (l2 : list int64),
+  l1 = l2 <-> ((length l1 = length l2) /\ forall (i : nat), (Nat.lt i (length l1)) -> nth i l1 Inhabitant_int64 = nth i l2 Inhabitant_int64).
+Proof.
+  intros l1 l2.
+  split.
+  - split. list_solve. list_solve.
+  - list_simplify. destruct H as [sizes elements].
+    -- rewrite 2!Zlength_correct. 
+       rewrite Nat2Z.inj_iff.
+       exact sizes.
+    -- unfold Znth. 
+       destruct (Z_lt_dec i 0).
+       --- reflexivity.
+       --- destruct H as [sizes elements].
+           specialize (elements (Z.to_nat i)).
+           lapply elements.
+           + trivial.
+           + destruct H2 as [ge0 ltl]. unfold Nat.lt.
+             rewrite Nat2Z.inj_lt. rewrite Z2Nat_id'. destruct i.
+             ++ simpl. rewrite <- Zlength_correct. exact ltl.
+             ++ simpl. rewrite <- Zlength_correct. exact ltl.
+             ++ simpl. specialize (Zlt_neg_0 p0) as notn. contradiction (n notn).
+Qed.
+ 
+Lemma alg_equiv : forall (b : block512),
+  LPS_opt b = l (p (s b)).
+Proof.
+  intros b.
+  unfold LPS_opt.
+  unfold l.
+  Check f_equal.
+  Check int64s_to_block512.
+  pose proof f_equal as H. specialize (H (list int64) block512 int64s_to_block512).
+  specialize (H (map (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => tableLPS_i_j i (ith_byte(nthi_int64 (block512_to_int64s b) i) k)) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7])
+                (map (fun x : int64 => b_times_A x) (block512_to_int64s (p (s b))))).
+  apply H. clear H.
+
+  admit.
+Admitted.
 
