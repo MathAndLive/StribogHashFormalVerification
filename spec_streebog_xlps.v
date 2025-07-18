@@ -1,5 +1,6 @@
 From VST.floyd Require Import proofauto library.
 Require Import streebog_generic.
+Require Import compcert.lib.Zbits.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -39,6 +40,32 @@ Definition inv_data_mem (i : Z) (x y z : val) (x_content y_content z_content : b
    data_at Ews tuint512 (block512_to_vals (int64s_to_block512
       (sublist 0 i (block512_to_int64s (LPSX x_content y_content)) ++
                             (sublist i 8 (block512_to_int64s z_content))))) z).
+
+(*
+Definition A_rev := rev A.
+
+Fixpoint calc_a (A : list int64) (t : Z) (i : nat) (a : int64): int64 :=
+  match i with
+  | O => a
+  | S i' => match A with
+    | [] => a
+    | x :: xs => let x' := Z_mod_two_p t 1 * x
+      in calc_a xs (Z.shiftr 1 t) i' (Int64.xor a x)
+    end
+  end.
+
+Fixpoint create_Ax (pi : list byte) (A : list int64) (i : Z) : list int64 :=
+  match i with
+  | O => []
+  | S i' =>
+    match pi with
+    | [] => []
+    | x :: xs =>
+    end
+  end.
+
+Fixpoint create_Ax (pi : list byte) (A : list int64) : list (list int64) . *)
+
 
 
 Lemma body_streebog_xlps :
