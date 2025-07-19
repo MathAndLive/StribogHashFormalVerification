@@ -287,8 +287,6 @@ Definition H512 (M : bits) : block512 :=
   let '(h, N, Sigma) := (stage_1 IV512) in
   let '(h', N', Sigma', M') := (stage_2 h N Sigma M) in
   stage_3 h' N' Sigma' M'.
-<<<<<<< HEAD
-=======
 
 Fixpoint bit_rec (j : Z) (indices : list Z) : list Z :=
   match indices with
@@ -323,4 +321,50 @@ Definition LPS_opt (b : block512) : block512 :=
     [0; 1; 2; 3; 4; 5; 6; 7]
   ).
 
->>>>>>> main
+(* Compute tableLPS_i_j 0 0.
+Compute 0xd01f715b5c7ef8e6. 
+Definition zero_int64 := Int64.repr 0.
+
+Definition Ax0 : list int64 :=
+  map (fun j => tableLPS_i_j 0 (Z.of_nat j)) (seq 0 256).
+
+Definition Ax1 : list int64 :=
+  map (fun j => tableLPS_i_j 1 (Z.of_nat j)) (seq 0 256).
+
+Definition Ax2 : list int64 :=
+  map (fun j => tableLPS_i_j 2 (Z.of_nat j)) (seq 0 256).
+
+Definition Ax3 : list int64 :=
+  map (fun j => tableLPS_i_j 3 (Z.of_nat j)) (seq 0 256).
+
+Definition Ax4 : list int64 :=
+  map (fun j => tableLPS_i_j 4 (Z.of_nat j)) (seq 0 256).
+
+Definition Ax5 : list int64 :=
+  map (fun j => tableLPS_i_j 5 (Z.of_nat j)) (seq 0 256).
+
+Definition Ax6 : list int64 :=
+  map (fun j => tableLPS_i_j 6 (Z.of_nat j)) (seq 0 256).
+
+Definition Ax7 : list int64 :=
+  map (fun j => tableLPS_i_j 7 (Z.of_nat j)) (seq 0 256). *)
+
+
+Definition Ax : list (list int64) :=
+  map (fun i =>
+         map (fun j =>
+                tableLPS_i_j (Z.of_nat i) (Z.of_nat j))
+             (seq 0 256))
+      (seq 0 8).
+
+(* Compute nth 222 (nth 3 Ax []) (Int64.repr 0). *)
+
+(* Compute nth 222 Ax3 (Int64.repr 0). 
+Compute tableLPS_i_j 7 255.
+
+Compute 0xd6a30f258c153427.
+Compute 0x16fa240980778325. *)
+
+
+
+
