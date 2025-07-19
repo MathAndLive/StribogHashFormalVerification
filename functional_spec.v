@@ -50,11 +50,11 @@ Definition block512_to_bytes (b : block512) : list byte :=
 
 (* t-й элемента списка целых *)
 Definition nthi_Z (il: list Z) (t: Z) : Z :=
-  nth (Z.to_nat t) il default.
+  nth (Z.to_nat t) il Inhabitant_Z.
 
 (* t-й элемента списка байтов *)
 Definition nthi_bytes (il: list byte) (t: Z) : byte :=
-  nth (Z.to_nat t) il default.
+  nth (Z.to_nat t) il Inhabitant_byte.
 
 (* склеивание байтов в число *)
 Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
@@ -337,8 +337,8 @@ Definition LPS_opt (b : block512) : block512 :=
     ) 
     [0; 1; 2; 3; 4; 5; 6; 7]
   ).
-
-Lemma list_nth_equal : forall (l1 : list int64) (l2 : list int64),
+  
+Lemma list_int64_nth_equal : forall (l1 : list int64) (l2 : list int64),
   l1 = l2 <-> ((length l1 = length l2) /\ forall (i : nat), (Nat.lt i (length l1)) -> nth i l1 Inhabitant_int64 = nth i l2 Inhabitant_int64).
 Proof.
   intros l1 l2.
@@ -362,10 +362,89 @@ Proof.
              ++ simpl. specialize (Zlt_neg_0 p0) as notn. contradiction (n notn).
 Qed.
 
+Lemma list_byte_nth_equal : forall (l1 : list byte) (l2 : list byte),
+  l1 = l2 <-> ((length l1 = length l2) /\ forall (i : nat), (Nat.lt i (length l1)) -> nth i l1 Inhabitant_byte = nth i l2 Inhabitant_byte).
+Proof.
+  intros l1 l2.
+  split.
+  - split. list_solve. list_solve.
+  - list_simplify. destruct H as [sizes elements].
+    -- rewrite 2!Zlength_correct. 
+       rewrite Nat2Z.inj_iff.
+       exact sizes.
+    -- unfold Znth. 
+       destruct (Z_lt_dec i 0).
+       --- reflexivity.
+       --- destruct H as [sizes elements].
+           specialize (elements (Z.to_nat i)).
+           lapply elements.
+           + trivial.
+           + destruct H2 as [ge0 ltl]. unfold Nat.lt.
+             rewrite Nat2Z.inj_lt. rewrite Z2Nat_id'. destruct i.
+             ++ simpl. rewrite <- Zlength_correct. exact ltl.
+             ++ simpl. rewrite <- Zlength_correct. exact ltl.
+             ++ simpl. specialize (Zlt_neg_0 p0) as notn. contradiction (n notn).
+Qed.
+
+Lemma elim_transform : forall (lb : list byte),
+  (length lb = 64%nat) -> block512_to_bytes (bytes_to_block512 lb) = lb.
+Proof.
+  intros lb size.
+  apply list_byte_nth_equal.
+  split.
+  - easy.
+  - intros i R; simpl in R. admit.
+Admitted.
+  
+Lemma ps_short : forall (b : block512),
+  p (s b) = bytes_to_block512 (tau_bytes (pi (block512_to_bytes b))).
+Proof.
+  intros b.
+  unfold p. 
+  unfold s.
+  rewrite elim_transform.
+  - reflexivity. 
+  - reflexivity.
+Qed.
+
+Lemma map_nthi_bytes : forall (f : Z -> byte) (l : list Z) (i : Z),
+  (0 <= i < Zlength l) -> nthi_bytes (map f l) i = f (nthi_Z l i).
+Proof.
+  intros f l0 i R.
+  destruct R as [ige0 iltsize].
+  unfold nthi_bytes.
+  assert (Nat.lt (Z.to_nat i) (length l0)).
+  { rewrite Nat2Z.inj_lt. rewrite <- Zlength_correct. lia. }
+  assert (~ l0 = []).
+  {  admit. }
+  
+Admitted.
+
+Lemma ith_of_pi_tau : forall (b: block512) (i : Z),
+  (0 <= i < 64) -> pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) i) = nthi_bytes (block512_to_bytes (p (s b))) i.
+Proof.
+  intros b i R.
+  rewrite ps_short.
+  rewrite elim_transform.
+  unfold tau_bytes.
+  assert (Zlength tau = 64) as sixtyfourbytes by reflexivity.
+  rewrite <- sixtyfourbytes in R; clear sixtyfourbytes.
+  rewrite 2!map_nthi_bytes.
+  - admit. 
+  - exact R.
+  - exact R.
+Admitted.
+
 Lemma alg_equiv : forall (b : block512),
   LPS_opt b = l (p (s b)).
 Proof.
   intros b.
+  unfold LPS_opt.
+  unfold tableLPS_i_j.
+  unfold map.
+  rewrite 64!ith_of_pi_tau.
+  admit. (* как применить тактику 64 раза за раз? *)
+  fold map. (* не сворачивается, что делать? *)
   (*unfold LPS_opt.
   unfold l.
   pose proof f_equal as H. specialize (H (list int64) block512 int64s_to_block512).
@@ -397,9 +476,3 @@ Proof.
     -- clear Hl. simpl. lia.*)
   admit.
 Admitted.
-
-(* fold_right_map:
-  forall {A B C : Type} (f : B -> A -> A) (g : C -> B) 
-    (e : A) (l : list C),
-  fold_right f e (map g l) =
-  fold_right (fun (c : C) (a : A) => f (g c) a) e l *)
