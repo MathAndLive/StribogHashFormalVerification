@@ -1,3 +1,5 @@
+(* --- ШАПКА --- *)
+
 From VST.floyd Require Import proofauto library.
 
 Require Import compcert.lib.Integers.
@@ -7,6 +9,8 @@ Require Import Coq.Program.Wf.
 Require Import compcert.lib.Coqlib.
 Require Import List.
 Import ListNotations.
+
+(* --- БЛОК В 512 БИТ --- *)
 
 Module Wordsize_512.
  Definition wordsize := 512%nat.
@@ -23,31 +27,36 @@ Strategy 0 [Wordsize_512.wordsize].
 
 Notation block512 := Vec512.int.
 
+(* --- СЛУЖЕБНЫЕ ФУНКЦИИ --- *)
+
 (* n младших битов числа b*)
 Definition LSB (n: nat) (b: Z) : Z :=
   Z_mod_two_p b n.
 
-(* разделение числа на k векторов длины m *)
+(* разбиение числа на k "векторов" длины m *)
 Fixpoint Z_to_chunks (m : nat) (k : nat) (z : Z) : list Z :=
   match k with
   | O => nil
   | S k' => (LSB m z) :: Z_to_chunks m k' (Z.shiftr z (Z.of_nat m))
   end.
 
-(* разделение числа на k байтов *)
+(* разбиение числа на k байтов *)
 Definition Z_to_bytes (k : nat) (z : Z) : list byte :=
   map Byte.repr (Z_to_chunks 8 k z).
 
+(* разбиение блока на байты *)
 Definition block512_to_bytes (b : block512) : list byte :=
   Z_to_bytes 64 (Vec512.unsigned b).
 
-(* поиск i-ого элемента списка *)
+(* t-й элемента списка целых *)
 Definition nthi_Z (il: list Z) (t: Z) : Z :=
   nth (Z.to_nat t) il default.
 
+(* t-й элемента списка байтов *)
 Definition nthi_bytes (il: list byte) (t: Z) : byte :=
   nth (Z.to_nat t) il default.
 
+(* склеивание байтов в число *)
 Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
   match k with
   | O => Z.zero
@@ -57,19 +66,20 @@ Fixpoint bytes_to_Z (k : nat) (il: list byte): Z :=
     end
   end.
 
-(* склеивание списка байтов в вектор *)
+(* склейка списка байтов в блок *)
 Definition bytes_to_block512 (il: list byte): block512 :=
   Vec512.repr (bytes_to_Z 64 il).
 
+(* разбиение числа на UL *)
 Definition Z_to_int64s (k : nat) (z : Z) : list int64 :=
   map Int64.repr (Z_to_chunks 64 k z).
 
-
+(* склеивание UL в число *)
 Definition block512_to_int64s (b : block512) : list int64 :=
   Z_to_int64s 8 (Vec512.unsigned b).
 
-(* Перевод 8 бит в 1 байт *)
-(* с точки зрения здравого смысла на всех машинах данные должны быть длиной в 8 бит, но если каким-то чудом машина будет другой, то мы дополняем до 8 бит нулями *)
+(* перевод 8 бит в 1 байт *)
+(* пока что на всех машинах слово имеет длину 8 бит, но, возможно, в будущем это будет не так *)
 Fixpoint bits_to_byte_rec (k : Z) (bs : bits) : byte :=
   match k with
   | 0 => Byte.repr 0
@@ -79,8 +89,10 @@ Fixpoint bits_to_byte_rec (k : Z) (bs : bits) : byte :=
          end
   end.
 
+(* склеивание битов в байт *)
 Definition bits_to_byte (bs: bits) : byte := bits_to_byte_rec 8 bs.
 
+(* группировка битов в списки по 8 *)
 Fixpoint group_bits (bs: bits) : list bits :=
   match bs with
   | b0::b1::b2::b3::b4::b5::b6::b7::tail =>
@@ -88,15 +100,19 @@ Fixpoint group_bits (bs: bits) : list bits :=
   | _ => [bs]
   end.
 
+(* разбиение кучки битов на байты *)
 Definition bits_to_bytes (bs: bits) : list byte :=
   map bits_to_byte (group_bits bs).
 
+(* склейка битов в блок (little-endian) *)
 Definition bits_to_block512_le (bs: bits) : block512 :=
   bytes_to_block512 (bits_to_bytes bs).
 
+(* склейка битов в блок (big-endian) *)
 Definition bits_to_block512_be (bs: bits) : block512 :=
   bits_to_block512_le (rev bs).
 
+(* склейка LU в число *)
 Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
   match k with
   | O => Z.zero
@@ -106,10 +122,38 @@ Fixpoint int64s_to_Z (k : nat) (il: list int64): Z :=
     end
   end.
   
+(* склейка LU в вектор *)
 Definition int64s_to_block512 (il: list int64): block512 :=
   Vec512.repr (int64s_to_Z 8 il).
 
-Definition pi'Z : list Z :=
+(* выбор из списка индексов тех, на позиции которых стоят единицы в битовом представлении числа j *)
+Fixpoint bit_rec (j : Z) (indices : list Z) : list Z :=
+  match indices with
+  | nil => nil
+  | x :: xs => if Z.testbit j x
+               then x :: bit_rec j xs
+               else bit_rec j xs
+  end.
+
+Definition bit (j : Z) : list Z := bit_rec j [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16;
+        17; 18; 19; 20; 21; 22; 23; 24; 25; 26; 27; 28; 29; 30;
+        31; 32; 33; 34; 35; 36; 37; 38; 39; 40; 41; 42; 43; 44;
+        45; 46; 47; 48; 49; 50; 51; 52; 53; 54; 55; 56; 57; 58;
+        59; 60; 61; 62; 63].
+
+(* t-й элемент списка из LU *)
+Definition nthi_int64 (il: list int64) (t: Z) : int64 :=
+  nth (Z.to_nat t) il Inhabitant_int64.
+  
+Definition lastn (n : nat) (ls : bits) : bits :=
+  rev (firstn n (rev ls)).
+
+(* --- ПОСТОЯННЫЕ ВЕЛИЧИНЫ --- *)
+
+(* инициализационный вектор для хэша 512 бит - все нули *)
+Definition IV512 : block512 := Vec512.repr 0.
+
+Definition pi' : list byte := map Byte.repr
     [
         252; 238; 221; 17; 207; 110; 49; 22; 251; 196; 250; 218; 35; 197; 4; 77;
         233; 119; 240; 219; 147; 46; 153; 186; 23; 54; 241; 187; 20; 205; 95; 193;
@@ -129,25 +173,6 @@ Definition pi'Z : list Z :=
         89; 166; 116; 210; 230; 244; 180; 192; 209; 102; 175; 194; 57; 75; 99; 182
     ].
 
-Definition pi' : list byte := map Byte.repr pi'Z.
-
-    (* применение функции pi *)
-Definition pi (il: list byte) :=
-  map (fun x => nthi_bytes pi' (Byte.unsigned x) ) il.
-
-(* функция S *)
-Definition s (v : block512) : block512 :=
-    bytes_to_block512 (pi (block512_to_bytes v)).
-
-
-(* Инициализационный вектор для хэша 512 бит — все нули *)
-Definition IV512 : block512 := Vec512.repr 0.
-
-
-Definition permute (permutation_list : list Z) (l : block512) : block512 :=
-  let bytes := block512_to_bytes l in
-    bytes_to_block512 (map (fun i => nthi_bytes bytes i)  permutation_list).
-
 Definition tau : list Z :=
   [0; 8; 16; 24; 32; 40; 48; 56;
    1; 9; 17; 25; 33; 41; 49; 57;
@@ -157,9 +182,6 @@ Definition tau : list Z :=
    5; 13; 21; 29; 37; 45; 53; 61;
    6; 14; 22; 30; 38; 46; 54; 62;
    7; 15; 23; 31; 39; 47; 55; 63].
-
-Definition p (l : block512) : block512 := permute tau l.
-
 
 Definition A : list int64 := map Int64.repr
   [ 0x8e20faa72ba0b470; 0x47107ddd9b505a38; 0xad08b0e0c3282d1c; 0xd8045870ef14980e; 
@@ -180,14 +202,6 @@ Definition A : list int64 := map Int64.repr
     0x07e095624504536c; 0x8d70c431ac02a736; 0xc83862965601dd1b; 0x641c314b2b8ee083
   ].
 
-(* если b в виде битов (big-endian) это b_63 ... b_0, а A это [a_0 ; ... ; a_63] то эта функция выдаёт b_63 * a_0 XOR ... XOR b_0 * a_63 *)
-Definition b_times_A (b : int64) : int64 :=
-  let b_Z := Int64.unsigned b in fst (fold_right (fun x y => ((Int64.xor (fst y) (if (Z.testbit b_Z (snd y)) then x else (Int64.repr 0))), (snd y) + 1)) (Int64.repr 0, 0) A).
-
-(* функция линейного преобразования *)
-Definition l (b : block512) : block512 :=
-  int64s_to_block512 (map (fun x => b_times_A x) (block512_to_int64s b)).
-
 Definition C : list Z :=
   [
     0xb1085bda1ecadae9ebcb2f81c0657c1f2f6a76432e45d016714eb88d7585c4fc4b7ce09192676901a2422a08a460d31505767436cc744d23dd806559f2a64507; 
@@ -204,20 +218,41 @@ Definition C : list Z :=
     0x378ee767f11631bad21380b00449b17acda43c32bcdf1d77f82012d430219f9b5d80ef9d1891cc86e71da4aa88e12852faf417d5d9b21b9948bc924af11bd720
   ].
 
+(* --- ПРЕОБРАЗОВАНИЕ S --- *)
+
+(* действие pi' над одним байтом *)
+Definition pi_byte (x : byte) : byte :=
+  nthi_bytes pi' (Byte.unsigned x).
+
+(* действие функции pi над списком байт *)
+Definition pi (il: list byte) :=
+  map (fun x => pi_byte x) il.
+
+Definition s (v : block512) : block512 :=
+    bytes_to_block512 (pi (block512_to_bytes v)).
+
+(* --- ПРЕОБРАЗОВАНИЕ P --- *)
+
+Definition tau_bytes (bytes : list byte) : list byte :=
+  (map (fun i => nthi_bytes bytes i) tau).
+
+Definition p (l : block512) : block512 :=
+    bytes_to_block512 (tau_bytes (block512_to_bytes l)).
+
+(* --- ПРЕОБРАЗОВАНИЕ L --- *)
+
+(* если b в виде битов (big-endian) это b_63 ... b_0, а A это [a_0 ; ... ; a_63] то эта функция выдаёт b_63 * a_0 XOR ... XOR b_0 * a_63 *)
+Definition b_times_A (b : int64) : int64 :=
+  fold_right Int64.xor (Int64.repr 0) (map (fun x => nthi_int64 (rev A) x) (bit (Int64.unsigned b))). 
+
+Definition l (b : block512) : block512 :=
+  int64s_to_block512 (map (fun x => b_times_A x) (block512_to_int64s b)).
+
+(* --- LPSX, КЛЮЧИ И НЕПОСРЕДСТВЕННО ХЕШ-ФУНКЦИЯ --- *)
+
 Definition LPSX (block1 block2 : block512): block512 := l (p (s (Vec512.xor block1 block2))).
 
-(* Fixpoint generate_keys' (K : block512) (n : nat) : list block512 :=
-  match n with
-  | O => []
-  | S O => [K]
-  | S (S i) =>
-      let prev := generate_keys K i in
-      let Ki_1 := last prev K in
-      let Ci := Vec512.repr (nthi_Z C (Z.of_nat i)) in
-      prev ++ [LPSX Ki_1 Ci]
-  end. *)
-
-(* Оптимизированная версия для генерации ключей, которая запоминает предыдущие вычисленные значения *)
+(* оптимизированная версия для генерации ключей, которая запоминает предыдущие вычисленные значения *)
 Fixpoint generate_keys_tailrec (acc : list block512) (n : nat) : list block512 :=
   match n with
   | O => acc
@@ -241,8 +276,7 @@ Definition E (keys: list block512) (m: block512) : block512 :=
     let k13 := last keys IV512 in
     Vec512.xor k13 (fold_left LPSX first_keys m)  
   else
-    m 
-.
+    m.
 
 Definition g_N (N h m : block512) : block512 :=
   let K1 := LPSX h N in
@@ -254,10 +288,7 @@ Definition stage_1 (IV : block512) : block512 * block512 * block512 :=
   let h := IV in
   let N := Vec512.repr 0 in
   let Sigma := Vec512.repr 0 in
-  (h, N, Sigma) .
-
-Definition lastn (n : nat) (ls : bits) : bits :=
-  rev (firstn n (rev ls)) .
+  (h, N, Sigma).
 
 Function stage_2 (h N Sigma : block512) (M : bits) {measure length M} : block512 * block512 * block512 * bits :=
   if lt_dec (length M) 512
@@ -288,35 +319,18 @@ Definition H512 (M : bits) : block512 :=
   let '(h', N', Sigma', M') := (stage_2 h N Sigma M) in
   stage_3 h' N' Sigma' M'.
 
+(* --- ПРИЛОЖЕНИЕ: ФУНКЦИОНАЛЬНАЯ СПЕЦИФИКАЦИЯ ОПТИМИЗИРОВАННОГО АЛГОРИТМА --- *)
 
-(* Здесь начинается функциональная спецификация алгоритма оптимизированного подсчёта операции LPS *)
-
-Fixpoint bit_rec (j : Z) (indices : list Z) : list Z :=
-  match indices with
-  | nil => nil
-  | x :: xs => if Z.testbit j x
-               then x :: bit_rec j xs
-               else bit_rec j xs
-  end.
-
-Definition bit (j : Z) : list Z := bit_rec j [0; 1; 2; 3; 4; 5; 6; 7]. (* позиции, на которых бит равен единице *)
-
-Definition nthi_int64 (il: list int64) (t: Z) : int64 :=
-  nth (Z.to_nat t) il Inhabitant_int64.
-
-Definition tableLPS_i_j (i : Z) (j : Z) : int64 := (* i = 0, ... , 7 ; j = 0, ... 255 *)
-  fold_right Int64.xor (Int64.repr 0) (map (fun k => (nthi_int64 A (63 - 8 * i - k))) (bit (nthi_Z pi'Z j))). 
-
-Definition ith_byte (x : int64) (i : Z) : Z :=
-  nthi_Z (Z_to_chunks 8 8 (Int64.unsigned x)) i.
+Definition tableLPS_i_j (i : Z) (j : byte) : int64 := (* i = 0, ... , 7 ; j = 0, ... 255 *)
+  fold_right Int64.xor (Int64.repr 0) (map (fun k => (nthi_int64 A (63 - 8 * i - k))) (bit (Byte.unsigned (pi_byte j)))). 
 
 Definition LPS_opt (b : block512) : block512 :=
-  let l := block512_to_int64s b in
+  let tbytes := tau_bytes (block512_to_bytes b) in
   int64s_to_block512 (
   map (
     fun k => fold_right Int64.xor (Int64.repr 0) (
       map (
-        fun i => tableLPS_i_j i (ith_byte (nthi_int64 l i) k)
+        fun i => tableLPS_i_j i (nthi_bytes tbytes (8 * k + i))
         ) 
       [0; 1; 2; 3; 4; 5; 6; 7]
       )
@@ -347,20 +361,45 @@ Proof.
              ++ simpl. rewrite <- Zlength_correct. exact ltl.
              ++ simpl. specialize (Zlt_neg_0 p0) as notn. contradiction (n notn).
 Qed.
- 
+
 Lemma alg_equiv : forall (b : block512),
   LPS_opt b = l (p (s b)).
 Proof.
   intros b.
-  unfold LPS_opt.
+  (*unfold LPS_opt.
   unfold l.
-  Check f_equal.
-  Check int64s_to_block512.
   pose proof f_equal as H. specialize (H (list int64) block512 int64s_to_block512).
   specialize (H (map (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => tableLPS_i_j i (ith_byte(nthi_int64 (block512_to_int64s b) i) k)) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7])
                 (map (fun x : int64 => b_times_A x) (block512_to_int64s (p (s b))))).
   apply H. clear H.
-
+  rewrite list_nth_equal.
+  split.
+  - simpl. reflexivity.
+  - intros i Hi; simpl in Hi.
+    specialize (nth_map' (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i0 : Z => tableLPS_i_j i0 (ith_byte (nthi_int64 (block512_to_int64s b) i0) k)) [0; 1; 2; 3; 4; 5; 6; 7]))
+                         Inhabitant_int64
+                         default
+                         i
+                         [0; 1; 2; 3; 4; 5; 6; 7]) as Hl.
+    lapply Hl.
+    -- clear Hl. intros H1. rewrite H1. clear H1.
+       specialize (nth_map' (fun x : int64 => b_times_A x)
+                            Inhabitant_int64
+                            default
+                            i
+                            (block512_to_int64s (p (s b)))) as Hr.
+       lapply Hr.
+       --- clear Hr. intros H2. rewrite H2. clear H2.
+           unfold b_times_A. 
+           
+           
+       --- clear Hr. simpl. lia.
+    -- clear Hl. simpl. lia.*)
   admit.
 Admitted.
 
+(* fold_right_map:
+  forall {A B C : Type} (f : B -> A -> A) (g : C -> B) 
+    (e : A) (l : list C),
+  fold_right f e (map g l) =
+  fold_right (fun (c : C) (a : A) => f (g c) a) e l *)
