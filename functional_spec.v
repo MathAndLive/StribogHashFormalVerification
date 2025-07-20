@@ -386,14 +386,37 @@ Proof.
              ++ simpl. specialize (Zlt_neg_0 p0) as notn. contradiction (n notn).
 Qed.
 
+Lemma remove_fold_right_xor : forall (l1 : list int64) (l2 : list int64),
+ l1 = l2 -> fold_right Int64.xor (Int64.repr 0) l1 = fold_right Int64.xor (Int64.repr 0) l2.
+Proof.
+  intros l1 l2 equal.
+  list_solve.
+Qed.
+
+Lemma remove_map : forall (T1 T2 : Type) (f : T1 -> T2) (l1 : list T1) (l2 : list T1),
+  l1 = l2 -> map f l1 = map f l2.
+Proof.
+  intros T1 T2 f l1 l2 equal.
+  list_solve.
+Qed.
+
+Lemma elim_ZtoB : forall (lb : list byte) (k : nat),
+  (k <> 0%nat) -> (length lb = k) -> Z_to_bytes k (bytes_to_Z k lb) = lb.
+Proof.
+  intros lb k ne size. 
+  admit.
+Admitted.
+
 Lemma elim_transform : forall (lb : list byte),
   (length lb = 64%nat) -> block512_to_bytes (bytes_to_block512 lb) = lb.
 Proof.
   intros lb size.
-  apply list_byte_nth_equal.
-  split.
-  - easy.
-  - intros i R; simpl in R. admit.
+  unfold bytes_to_block512.
+  unfold block512_to_bytes.
+  specialize (Vec512.unsigned_repr (bytes_to_Z 64 lb)) as UR.
+  lapply UR.
+  - clear UR. intros cancel. rewrite cancel. clear cancel. apply elim_ZtoB. easy. exact size.
+  - clear UR. admit.
 Admitted.
   
 Lemma ps_short : forall (b : block512),
@@ -435,44 +458,125 @@ Proof.
   - exact R.
 Admitted.
 
+Lemma l_equiv : forall (b : block512), 
+  map (fun k : Z =>
+     fold_right Int64.xor (Int64.repr 0)
+       (map
+          (fun i : Z =>
+           fold_right Int64.xor (Int64.repr 0)
+             (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
+                (bit
+                   (Byte.unsigned
+                      (nthi_bytes (block512_to_bytes b)
+                         (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7]))
+    [0; 1; 2; 3; 4; 5; 6; 7] =
+  map (fun x : int64 => b_times_A x) (block512_to_int64s b).
+Proof.
+  intros b.
+  admit.
+Admitted.
+
+Definition the_thing (b : block512) (k : Z) : int64 :=
+  fold_right Int64.xor (Int64.repr 0)
+    (map
+       (fun i : Z =>
+        fold_right Int64.xor (Int64.repr 0)
+          (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
+             (bit
+                (Byte.unsigned
+                   (pi_byte
+                      (nthi_bytes
+                         (tau_bytes (block512_to_bytes b))
+                         (8 * k + i)))))))
+       [0; 1; 2; 3; 4; 5; 6; 7]).
+
 Lemma alg_equiv : forall (b : block512),
   LPS_opt b = l (p (s b)).
 Proof.
   intros b.
   unfold LPS_opt.
   unfold tableLPS_i_j.
-  unfold map.
-  rewrite 64!ith_of_pi_tau.
-  admit. (* как применить тактику 64 раза за раз? *)
-  fold map. (* не сворачивается, что делать? *)
-  (*unfold LPS_opt.
-  unfold l.
-  pose proof f_equal as H. specialize (H (list int64) block512 int64s_to_block512).
-  specialize (H (map (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => tableLPS_i_j i (ith_byte(nthi_int64 (block512_to_int64s b) i) k)) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7])
-                (map (fun x : int64 => b_times_A x) (block512_to_int64s (p (s b))))).
-  apply H. clear H.
-  rewrite list_nth_equal.
-  split.
-  - simpl. reflexivity.
-  - intros i Hi; simpl in Hi.
-    specialize (nth_map' (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i0 : Z => tableLPS_i_j i0 (ith_byte (nthi_int64 (block512_to_int64s b) i0) k)) [0; 1; 2; 3; 4; 5; 6; 7]))
-                         Inhabitant_int64
-                         default
-                         i
-                         [0; 1; 2; 3; 4; 5; 6; 7]) as Hl.
-    lapply Hl.
-    -- clear Hl. intros H1. rewrite H1. clear H1.
-       specialize (nth_map' (fun x : int64 => b_times_A x)
-                            Inhabitant_int64
-                            default
-                            i
-                            (block512_to_int64s (p (s b)))) as Hr.
-       lapply Hr.
-       --- clear Hr. intros H2. rewrite H2. clear H2.
-           unfold b_times_A. 
-           
-           
-       --- clear Hr. simpl. lia.
-    -- clear Hl. simpl. lia.*)
-  admit.
-Admitted.
+  assert ((fun k : Z =>
+      fold_right Int64.xor (Int64.repr 0)
+        (map
+           (fun i : Z =>
+            fold_right Int64.xor (Int64.repr 0)
+              (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
+                 (bit
+                    (Byte.unsigned
+                       (pi_byte
+                          (nthi_bytes
+                             (tau_bytes (block512_to_bytes b))
+                             (8 * k + i)))))))
+           [0; 1; 2; 3; 4; 5; 6; 7])) = the_thing b) as H by reflexivity; rewrite H; clear H.
+  assert (map (the_thing b) [0; 1; 2; 3; 4; 5; 6; 7] = 
+          map (fun k : Z => fold_right Int64.xor (Int64.repr 0)
+    (map
+       (fun i : Z =>
+        fold_right Int64.xor (Int64.repr 0)
+          (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
+             (bit
+                (Byte.unsigned
+                   (nthi_bytes (block512_to_bytes (p (s b))) (8 * k + i))))))
+       [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7]) as H.
+  - unfold the_thing.
+    pose proof map_ext_in as M.
+    specialize (M Z int64 (fun k : Z =>
+                             fold_right Int64.xor (Int64.repr 0)
+                               (map
+                                  (fun i : Z =>
+                                   fold_right Int64.xor (Int64.repr 0)
+                                     (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
+                                        (bit
+                                           (Byte.unsigned
+                                              (pi_byte
+                                                 (nthi_bytes
+                                                    (tau_bytes (block512_to_bytes b))
+                                                    (8 * k + i)))))))
+                                  [0; 1; 2; 3; 4; 5; 6; 7])) (fun k : Z =>
+                             fold_right Int64.xor (Int64.repr 0)
+                               (map
+                                  (fun i : Z =>
+                                   fold_right Int64.xor (Int64.repr 0)
+                                     (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
+                                        (bit
+                                           (Byte.unsigned
+                                              (nthi_bytes (block512_to_bytes (p (s b)))
+                                                 (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7]).
+    lapply M.
+    -- trivial.
+    -- clear M.
+       intros i R1.
+       apply remove_fold_right_xor.
+       pose proof map_ext_in as M.
+       specialize (M Z int64 (fun i0 : Z =>
+         fold_right Int64.xor (Int64.repr 0)
+           (map (fun k0 : Z => nthi_int64 A (63 - 8 * i0 - k0))
+              (bit
+                 (Byte.unsigned
+                    (pi_byte
+                       (nthi_bytes (tau_bytes (block512_to_bytes b))
+                          (8 * i + i0))))))) (fun i0 : Z =>
+         fold_right Int64.xor (Int64.repr 0)
+           (map (fun k0 : Z => nthi_int64 A (63 - 8 * i0 - k0))
+              (bit
+                 (Byte.unsigned
+                    (nthi_bytes (block512_to_bytes (p (s b)))
+                       (8 * i + i0)))))) [0; 1; 2; 3; 4; 5; 6; 7] ).
+       lapply M.
+       + trivial.
+       + clear M.
+         intros l R2.
+         apply remove_fold_right_xor.
+         apply remove_map.
+         apply f_equal.
+         apply f_equal.
+         apply ith_of_pi_tau.
+         unfold In in R1.
+         unfold In in R2.
+         lia.
+  - rewrite H; clear H.
+    unfold l.
+    apply f_equal.
+    apply l_equiv.
+Qed.
