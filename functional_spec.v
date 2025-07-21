@@ -337,7 +337,7 @@ Definition LPS_opt (b : block512) : block512 :=
     ) 
     [0; 1; 2; 3; 4; 5; 6; 7]
   ).
-  
+
 Lemma list_int64_nth_equal : forall (l1 : list int64) (l2 : list int64),
   l1 = l2 <-> ((length l1 = length l2) /\ forall (i : nat), (Nat.lt i (length l1)) -> nth i l1 Inhabitant_int64 = nth i l2 Inhabitant_int64).
 Proof.
@@ -400,11 +400,109 @@ Proof.
   list_solve.
 Qed.
 
-Lemma elim_ZtoB : forall (lb : list byte) (k : nat),
-  (k <> 0%nat) -> (length lb = k) -> Z_to_bytes k (bytes_to_Z k lb) = lb.
+Lemma ZtoC_length : forall (m : nat) (k : nat) (z : Z),
+  length (Z_to_chunks m k z) = k.
 Proof.
-  intros lb k ne size. 
-  admit.
+  intros m k.
+  induction k as [| k' IHk'].
+  - easy.
+  - intros z.
+    simpl.
+    specialize (IHk' (Z.shiftr z (Z.of_nat m))) as W.
+    rewrite W.
+    reflexivity.
+Qed.
+
+Lemma ZtoB_length : forall (k : nat) (z : Z),
+  length (Z_to_bytes k z) = k.
+Proof.
+  intros k z.
+  unfold Z_to_bytes.
+  rewrite length_map.
+  apply ZtoC_length.
+Qed.
+
+Lemma elim_ZtoB : forall (k : nat) (lb : list byte),
+  (length lb = k) -> Z_to_bytes k (bytes_to_Z k lb) = lb.
+Proof.
+  intros k.
+  induction k as [| k' IHk'].
+  - intros lb size.
+    simpl.
+    unfold Z_to_bytes.
+    unfold Z_to_chunks.
+    list_simplify.
+    symmetry.
+    apply Z2Nat.inj_iff.
+    -- exact H2.
+    -- lia.
+    -- rewrite Zlength_correct.
+       simpl.
+       rewrite Nat2Z.id.
+       exact size.
+  - intros lb size.
+    admit.
+  (*list_simplify.
+  - rewrite Zlength_correct.
+    rewrite ZtoB_length.
+    rewrite Zlength_correct.
+    apply inj_eq.
+    symmetry.
+    exact size.    
+  - clear H0.
+    unfold Z_to_bytes.
+    unfold Z_to_bytes in H1.
+    Search (Znth ?a (map ?b ?c)).
+    rewrite Znth_map.
+    -- 
+    -- rewrite Zlength_map in H1.
+       exact H1.*)
+Admitted.
+
+Lemma BtoZ_nonneg : forall (k : nat) (lb : list byte),
+  0 <= bytes_to_Z k lb.
+Proof.
+  intros k.
+  induction k as [| k' IHk'].
+  - easy.
+  - intros lb. simpl. destruct lb.
+    -- easy.
+    -- pose proof (Byte.unsigned_range i).
+       apply Z.add_nonneg_nonneg.
+       + apply H.
+       + apply Z.mul_nonneg_nonneg.
+         lia.
+         apply Z.mul_nonneg_nonneg.
+         lia.
+         apply Z.mul_nonneg_nonneg.
+         lia.
+         apply Z.mul_nonneg_nonneg.
+         lia.
+         apply Z.mul_nonneg_nonneg.
+         lia.
+         apply Z.mul_nonneg_nonneg.
+         lia.
+         apply Z.mul_nonneg_nonneg.
+         lia.
+         apply Z.mul_nonneg_nonneg.
+         lia.
+         apply IHk'.
+Qed.
+
+Lemma BtoZ_lt : forall (k : nat) (lb : list byte),
+ length lb = k -> bytes_to_Z k lb <= (two_power_nat (k * 8%nat)) - 1.
+Proof.
+  intros k.
+  induction k as [| k' IHk'].
+  - easy.
+  - intros lb.
+    intros hyp.
+    simpl.
+    destruct lb.
+    -- discriminate.
+    -- assert (Datatypes.length lb = k').
+       + list_solve.
+       + admit.
 Admitted.
 
 Lemma elim_transform : forall (lb : list byte),
@@ -413,11 +511,33 @@ Proof.
   intros lb size.
   unfold bytes_to_block512.
   unfold block512_to_bytes.
-  specialize (Vec512.unsigned_repr (bytes_to_Z 64 lb)) as UR.
-  lapply UR.
-  - clear UR. intros cancel. rewrite cancel. clear cancel. apply elim_ZtoB. easy. exact size.
-  - clear UR. admit.
-Admitted.
+  list_simplify.
+  - rewrite Zlength_correct.
+    rewrite ZtoB_length.
+    rewrite Zlength_correct.
+    apply inj_eq.
+    symmetry.
+    exact size.
+  - clear H0.
+    specialize (Vec512.unsigned_repr (bytes_to_Z 64 lb)) as UR.
+    lapply UR.
+    -- clear UR.
+       intros cancel.
+       rewrite cancel.
+       clear cancel.
+       pose proof elim_ZtoB as elim.
+       specialize (elim 64%nat lb).
+       lapply elim.
+       --- clear elim. 
+           intros thing.
+           rewrite thing.
+           + reflexivity.
+       --- easy.
+    -- split.
+       --- apply BtoZ_nonneg.
+       --- apply BtoZ_lt.
+           exact size.  
+Qed.
   
 Lemma ps_short : forall (b : block512),
   p (s b) = bytes_to_block512 (tau_bytes (pi (block512_to_bytes b))).
