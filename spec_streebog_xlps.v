@@ -13,7 +13,7 @@ Definition tuint512 := Tstruct _streebog_uint512 noattr.
 Fixpoint gen_Ax_row (m i j : nat) :=
   match j with
   | O => nil
-  | S j' => (tableLPS_i_j (Z.of_nat i) (Z.of_nat (m - j))) :: (gen_Ax_row m i j')
+  | S j' => (tableLPS_i_j (Z.of_nat i) (Byte.repr (Z.of_nat (m - j)))) :: (gen_Ax_row m i j')
   end.
 
 Fixpoint gen_Ax' (n m i : nat) :=
@@ -23,6 +23,8 @@ Fixpoint gen_Ax' (n m i : nat) :=
   end.
 
 Definition gen_Ax := gen_Ax' 8 256 8.
+
+Definition Ax_vals := (map (map Vlong) gen_Ax).
 
 Example test1: (Znth 0 (Znth 0 gen_Ax)) = Int64.repr 0xd01f715b5c7ef8e6.
 Proof. reflexivity. Qed.
@@ -44,13 +46,13 @@ Proof. reflexivity. Qed.
 Definition data_mem (sh_r : share) (x : val) (x_content : block512) : mpred :=
   data_at sh_r tuint512 (block512_to_vals x_content) x.
 
-Definition result_data_mem (sh_w : share) (i : Z) (z : val)
-  (x_content y_content z_content : block512) : mpred :=
+Definition result_data_mem (sh_w : share) (i : Z) (data : val)
+  (x_content y_content data_content : block512) : mpred :=
     (data_at sh_w tuint512 ((sublist 0 i (block512_to_vals (LPSX x_content y_content))) ++
-        (sublist i 8 (block512_to_vals z_content))) z).
+        (sublist i 8 (block512_to_vals data_content))) data).
 
-Definition Ax_data_mem (sh_r : share) (Ax : val) : mpred :=
-   data_at sh_r (tarray (tarray tlong 256) 8) (map (map Vlong) gen_Ax) Ax.
+Definition Ax_data_mem (sh_r : share) (Ax_vals : list (list val)) (Ax : val) : mpred :=
+   data_at sh_r (tarray (tarray tulong 256) 8) Ax_vals Ax.
 
 (* Definition r_i_expr (i : Z) (j : Z) (x_content y_content : block512) : val := *)
 (*   Vlong (Int64.repr (Z.shiftr (Znth j (block512_to_chunks (Vec512.xor x_content y_content))) (64 * i))). *)
@@ -115,31 +117,33 @@ Admitted.
 Definition streebog_xlps_spec :=
   DECLARE _streebog_xlps
   WITH   sh_r : share, sh_w : share,
-         x : val, y : val, z : val,
-         x_content : block512, y_content : block512, z_content : block512,
+         x : val, y : val, data : val,
+         x_content : block512, y_content : block512, data_content : block512,
          Ax : val, gv : globals
   PRE [tptr tuint512, tptr tuint512, tptr tuint512]
     PROP(readable_share sh_r; writable_share sh_w)
-    PARAMS (x; y; z)
+    PARAMS (x; y; data)
     SEP (
         data_mem sh_r x x_content;
         data_mem sh_r y y_content;
-        data_mem sh_w z z_content;
-        Ax_data_mem sh_r Ax)
+        data_mem sh_w data data_content;
+        Ax_data_mem sh_r Ax_vals (gv _Ax))
+        (* Ax_data_mem sh_r gv _Ax) *)
         (* data_at sh_r tuint512 (block512_to_vals x_content) x; *)
         (* data_at sh_r tuint512 (block512_to_vals y_content) y; *)
-        (* data_at sh_w tuint512 (block512_to_vals z_content) z; *)
-     (* data_at sh_r (tarray (tarray tlong 256) 8) (map (map Vlong) gen_Ax) Ax) *)
+        (* data_at sh_w tuint512 (block512_to_vals data_content) data; *)
+     (* data_at sh_r (tarray (tarray tulong 256) 8) (map (map Vlong) gen_Ax) Ax) *)
   POST [tvoid]
     PROP()
     RETURN()
     SEP (
         data_mem sh_r x x_content;
         data_mem sh_r y y_content;
-        result_data_mem sh_w 8 z x_content y_content z_content;
-        Ax_data_mem sh_r Ax).
-        (* data_at sh_w tuint512 (block512_to_vals (LPSX x_content y_content)) z; *)
-     (* data_at sh_r (tarray (tarray tlong 256) 8) (map (map Vlong) gen_Ax) Ax). *)
+        result_data_mem sh_w 8 data x_content y_content data_content;
+        Ax_data_mem sh_r Ax_vals (gv _Ax)).
+        (* Ax_data_mem sh_r gv _Ax). *)
+        (* data_at sh_w tuint512 (block512_to_vals (LPSX x_content y_content)) data; *)
+     (* data_at sh_r (tarray (tarray tulong 256) 8) (map (map Vlong) gen_Ax) Ax). *)
 
 
 Lemma body_streebog_xlps :
@@ -148,6 +152,7 @@ Proof.
   start_function.
   assert (Zlength (block512_to_vals x_content) = 8) by reflexivity.
   assert (Zlength (block512_to_vals y_content) = 8) by reflexivity.
+  assert (Zlength (block512_to_vals (Vec512.xor x_content y_content)) = 8) by reflexivity.
   assert (Zlength (map (map Vlong) gen_Ax) = 8) by reflexivity.
   assert (Zlength (Znth 0 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
   assert (Zlength (Znth 1 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
@@ -157,9 +162,12 @@ Proof.
   assert (Zlength (Znth 5 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
   assert (Zlength (Znth 6 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
   assert (Zlength (Znth 7 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
+  (* assert (Zlength (Znth 0 (block512_to_vals (Vec512.xor x_content y_content))) = 8) by reflexivity. *)
  
   unfold data_mem, result_data_mem, Ax_data_mem.
   do 24 forward.
+
+  (* Definition Ax_vals := Ax_to_vals gen_Ax. *)
 
   deadvars!.
   forward_loop
@@ -168,7 +176,7 @@ Proof.
           (*  EX r6:val, EX r7:val, *)
      PROP (0 <= i <= 8;
           sublist 0 i (block512_to_vals (LPSX x_content y_content)) =
-          sublist 0 i (block512_to_vals z_content))
+          sublist 0 i (block512_to_vals data_content))
      LOCAL (temp _i (Vint (Int.repr i));
             temp _r0 (r_i_expr i 0 x_content y_content);
             temp _r1 (r_i_expr i 1 x_content y_content);
@@ -182,108 +190,75 @@ Proof.
      )
      SEP (data_mem sh_r x x_content;
           data_mem sh_r y y_content;
-          result_data_mem sh_w i z x_content y_content z_content;
-          Ax_data_mem sh_r (gv _Ax))).
+          result_data_mem sh_w i data x_content y_content data_content;
+          Ax_data_mem sh_r Ax_vals (gv _Ax)
+           (* data_at sh_r (tarray (tarray tulong 256) 8) (map (map Vlong) gen_Ax) (gv _Ax) *)
+          (* data_at sh_r (tarray (tarray tulong 256) 8) (map (map Vlong) gen_Ax) (gv _Ax) *)
+     )).
+
   - forward. 
     entailer!.
     Exists 0.
     entailer!.
 
-    
-    split.
-    + rewrite r_i_eq; try assumption.
-      unfold Z_to_xor_list.
-      rewrite Znth_0_cons.
-      reflexivity.
-    + split; try lia.
-      ++ rewrite r_i_eq; try assumption.
-        unfold Z_to_xor_list.
-        rewrite Znth_pos_cons; try lia.
-        rewrite Znth_0_cons.
-        reflexivity.
-      ++  split.
-         +++ rewrite r_i_eq; try assumption.
-             unfold Z_to_xor_list.
-             rewrite 2!Znth_pos_cons; try lia.
-             rewrite Znth_0_cons.
-             reflexivity.
-         +++ split.
-             ++++ rewrite r_i_eq; try assumption.
-                 unfold Z_to_xor_list.
-                 rewrite 3!Znth_pos_cons; try lia.
-                 rewrite Znth_0_cons.
-                 reflexivity.
-             ++++ split.
-                  +++++ rewrite r_i_eq; try assumption.
-                     unfold Z_to_xor_list.
-                     rewrite 4!Znth_pos_cons; try lia.
-                     rewrite Znth_0_cons.
-                     reflexivity.
-                  +++++ split.
-                        -- rewrite r_i_eq; try assumption.
-                         unfold Z_to_xor_list.
-                         rewrite 5!Znth_pos_cons; try lia.
-                         rewrite Znth_0_cons.
-                         reflexivity.
-                        -- split.
-                           ** rewrite r_i_eq; try assumption.
-                             unfold Z_to_xor_list.
-                             rewrite 6!Znth_pos_cons; try lia.
-                             rewrite Znth_0_cons.
-                             reflexivity.
-                           ** split. 
-                              *** rewrite r_i_eq; try assumption.
-                               unfold Z_to_xor_list.
-                               rewrite 7!Znth_pos_cons; try lia.
-                               rewrite Znth_0_cons.
-                               reflexivity.
-                              ***
-  - Intros i.
-    forward_if.
-    forward.
+    split. now rewrite r_i_eq.
+    split. now rewrite r_i_eq.
+    split. now rewrite r_i_eq.
+    split. now rewrite r_i_eq.
+    split. now rewrite r_i_eq.
+    split. now rewrite r_i_eq.
+    split. now rewrite r_i_eq.
+    split. now rewrite r_i_eq.
+    admit.
 
-    + rewrite (r_i_eq 0 0 x_content y_content). intros Hr1.
-    unfold r_i_expr.
+  - Intros i.
+    Check _Ax.
+    forward_if.
+    -- unfold Ax_data_mem. forward.
+       entailer!. 
+
+    (* + rewrite (r_i_eq 0 0 x_content y_content). intros Hr1. *)
+    (* unfold r_i_expr. *)
     (* unfold block512_to_chunks, Z_to_chunks. *)
     (* rewrite Z.shiftr_0_r. *)
-    split.
-    + 
-      rewrite xor_repr_comm.
-      rewrite xor_LSB_comm.
-      rewrite xor_unsigned_comm.
-      unfold block512_to_chunks, Z_to_chunks.
-      rewrite Znth_0_cons.
-      reflexivity.
-    + 
-      rewrite !xor_repr_comm.
-      rewrite !xor_LSB_comm.
-      rewrite <- !Z.shiftr_lxor.
-      rewrite !xor_unsigned_comm.
-      unfold block512_to_chunks, Z_to_chunks.
-      rewrite Znth_pos_cons.
-      split.
-      ++ rewrite Znth_0_cons.
-         reflexivity.
-      ++ rewrite 2!Znth_pos_cons.
-         split.
-         rewrite Znth_0_cons. 
-         +++ reflexivity.
-         +++ reflexivity.
-         +++ reflexivity.
-      ** reflexivity.
-      Search Znth.
-      Search Znth.
-
-      
-    Search (Znth ?y ?x = ?x.
-    unfold block512_to_chunks.
-    unfold Z_to_chunks.
-    rewrite Znth_list_repeat_inrange.
+    (* split. *)
+    (* +  *)
+    (*   rewrite xor_repr_comm. *)
+    (*   rewrite xor_LSB_comm. *)
+    (*   rewrite xor_unsigned_comm. *)
+    (*   unfold block512_to_chunks, Z_to_chunks. *)
+    (*   rewrite Znth_0_cons. *)
+    (*   reflexivity. *)
+    (* +  *)
+    (*   rewrite !xor_repr_comm. *)
+    (*   rewrite !xor_LSB_comm. *)
+    (*   rewrite <- !Z.shiftr_lxor. *)
+    (*   rewrite !xor_unsigned_comm. *)
+    (*   unfold block512_to_chunks, Z_to_chunks. *)
+    (*   rewrite Znth_pos_cons. *)
+    (*   split. *)
+    (*   ++ rewrite Znth_0_cons. *)
+    (*      reflexivity. *)
+    (*   ++ rewrite 2!Znth_pos_cons. *)
+    (*      split. *)
+    (*      rewrite Znth_0_cons.  *)
+    (*      +++ reflexivity. *)
+    (*      +++ reflexivity. *)
+    (*      +++ reflexivity. *)
+    (*   ** reflexivity. *)
+    (*   Search Znth. *)
+    (*   Search Znth. *)
+    (**)
+    (*    *)
+    (* Search (Znth ?y ?x = ?x. *)
+    (* unfold block512_to_chunks. *)
+    (* unfold Z_to_chunks. *)
+    (* rewrite Znth_list_repeat_inrange. *)
     (* unfold result_data_mem. entailer!. rewrite (sublist_same 0 8). *)
     (* autorewrite with sublist. entailer!. *)
-  - Intros i.
-    forward_if.
-    abbreviate_semax.
-    unfold data_mem, result_data_mem, Ax_data_mem.
-    forward.
+  (* - Intros i. *)
+  (*   forward_if. *)
+  (*   abbreviate_semax. *)
+  (*   unfold data_mem, result_data_mem, Ax_data_mem. *)
+  (*   forward. *)
 Qed.
