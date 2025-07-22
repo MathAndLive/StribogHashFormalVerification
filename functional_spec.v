@@ -405,12 +405,12 @@ Qed.
 Lemma ZtoC_length : forall (m : nat) (k : nat) (z : Z),
   length (Z_to_chunks m k z) = k.
 Proof.
-  intros m k.
+  intros m k. (* важно: не делаем intros z *)
   induction k as [| k' IHk'].
   - easy.
   - intros z.
     simpl.
-    specialize (IHk' (Z.shiftr z (Z.of_nat m))) as W.
+    specialize (IHk' (Z.shiftr z (Z.of_nat m))) as W. (* так как не делали intros z в самом начале, в индукционное предположение можем подставить что угодно *)
     rewrite W.
     reflexivity.
 Qed.
@@ -427,30 +427,15 @@ Qed.
 Lemma BtoZ_nonneg : forall (k : nat) (lb : list byte),
   0 <= bytes_to_Z k lb.
 Proof.
-  intros k.
+  intros k. (* как обычно при индукции вводим только "индукционную переменную" *)
   induction k as [| k' IHk'].
   - easy.
   - intros lb. simpl. destruct lb.
     -- easy.
     -- pose proof (Byte.unsigned_range i).
-       apply Z.add_nonneg_nonneg.
+       apply Z.add_nonneg_nonneg. (* сумма неотрицательных целых неотрицательна *)
        + apply H.
-       + apply Z.mul_nonneg_nonneg.
-         lia.
-         apply Z.mul_nonneg_nonneg.
-         lia.
-         apply Z.mul_nonneg_nonneg.
-         lia.
-         apply Z.mul_nonneg_nonneg.
-         lia.
-         apply Z.mul_nonneg_nonneg.
-         lia.
-         apply Z.mul_nonneg_nonneg.
-         lia.
-         apply Z.mul_nonneg_nonneg.
-         lia.
-         apply Z.mul_nonneg_nonneg.
-         lia.
+       + do 8 (apply Z.mul_nonneg_nonneg; try lia). (* произведение неотрицательных целых неотрицательно *)
          apply IHk'.
 Qed.
 
@@ -460,28 +445,24 @@ Proof.
   intros k.
   induction k as [| k' IHk'].
   - easy.
-  - intros lb.
-    intros hyp.
+  - intros lb size.
     simpl.
     destruct lb.
     -- discriminate.
-    -- assert (Datatypes.length lb = k') as size by list_solve.
-       clear hyp.
-       rewrite 7!Pos2Z.pos_xI.
+    -- rewrite 7!Pos2Z.pos_xI.
        rewrite Pos.pred_double_spec.
-       ring_simplify.
+       ring_simplify. (* выполняет очевидные арифметические действия *)
        rewrite Pos2Z.inj_pred.
-       + assert (Z.pos (shift_nat (k' * 8) 1)~0 = 2 * Z.pos (shift_nat (k' * 8) 1)) as L by apply Pos2Z.pos_xO; rewrite L; clear L.
+       + assert (Z.pos (shift_nat (k' * 8) 1)~0 = 2 * Z.pos (shift_nat (k' * 8) 1)) as L by apply Pos2Z.pos_xO; rewrite L; clear L. (* просто применить rewrite Pos2Z.pos_xO не получится, он набросится на 256 из левой части и будет представлять его как 2 * 128, потом как 2 * 1 * 128, потом как 2 * 1 * 1 * 128 и так далее до бесконечности *)
          rewrite Z.mul_pred_r.
-         ring_simplify.
          rewrite shift_nat_correct.
-         ring_simplify.
          rewrite <- two_power_nat_correct.
+         ring_simplify.
          specialize (IHk' lb).
          lapply IHk'.
          * rep_lia.
-         * exact size.
-       + easy.
+         * list_solve.
+       + discriminate.
 Qed.
 
 Lemma elim_ZtoB : forall (k : nat) (lb : list byte),
@@ -502,43 +483,41 @@ Proof.
        simpl.
        rewrite Nat2Z.id.
        exact size.
-  - intros lb size'.
+  - intros lb size.
     simpl.
     destruct lb.
     + discriminate.
-    + assert (Datatypes.length lb = k') as size by list_solve.
-      clear size'.
-      specialize (IHk' lb).
+    + specialize (IHk' lb).
       lapply IHk'.
       ++ intros H; clear IHk'.
          unfold Z_to_bytes.
          unfold Z_to_chunks.
          fold Z_to_chunks.
          simpl.
-         apply cons_congr.
-         * assert (2 * (2 * (2 * (2 * (2 * (2 * (2 * (2 * bytes_to_Z k' lb))))))) = (bytes_to_Z k' lb) * 2^8) as W by lia; rewrite W; clear W.
+         apply cons_congr. (* простыми словами a = b -> c = d -> a :: c = b :: d *)
+         * assert (2 * (2 * (2 * (2 * (2 * (2 * (2 * (2 * bytes_to_Z k' lb))))))) = (bytes_to_Z k' lb) * 2^8) as W by lia; rewrite W; clear W. (* ring_simplify не работает *)
            unfold LSB.
            rewrite Z_mod_two_p_eq.
-           rewrite two_power_nat_equiv.
-           rewrite Z_mod_plus_full.
-           simpl.
-           assert (Z.pow_pos 2 8 = Byte.modulus) as K by reflexivity; rewrite K; clear K.
+           assert (two_power_nat 8 = Byte.modulus) as M by reflexivity; rewrite M; clear M.
+           assert (2 ^ 8 = Byte.modulus) as M by reflexivity; rewrite M; clear M.
+           rewrite Z_mod_plus_full.           
            rewrite <- Byte.unsigned_repr_eq.
            rewrite 2!Byte.repr_unsigned.
            reflexivity.
          * assert ((Z.shiftr (Byte.unsigned i + 2 * (2 * (2 * (2 * (2 * (2 * (2 * (2 * bytes_to_Z k' lb)))))))) 8) = bytes_to_Z k' lb) as big_one.
-           ** assert (2 * (2 * (2 * (2 * (2 * (2 * (2 * (2 * bytes_to_Z k' lb))))))) = (bytes_to_Z k' lb) * 2^8) as obvious by lia; rewrite obvious; clear obvious.
-              rewrite Z.shiftr_div_pow2.
-              -- rewrite Z.div_add.
-                 --- assert (Byte.unsigned i / 2 ^ 8 = 0) as tiny.
-                     { apply Z.div_small. rep_lia. }
-                     rewrite tiny.
-                     reflexivity.
-                 --- lia.
-              -- lia.
-          ** rewrite big_one; clear big_one.
-             auto. (* слева Z_to_bytes по определению *)
-      ++ exact size.
+           { 
+             assert (2 * (2 * (2 * (2 * (2 * (2 * (2 * (2 * bytes_to_Z k' lb))))))) = (bytes_to_Z k' lb) * 2^8) as obvious by lia; rewrite obvious; clear obvious. (* ring_simplify ничего не делает *)
+             rewrite Z.shiftr_div_pow2.
+             - rewrite Z.div_add. (* (a + b * c) / c = a / c + b *)
+               -- rewrite Z.div_small. (* байт меньше 256 *)
+                  + reflexivity.
+                  + rep_lia.
+               -- lia.
+             - lia.
+           }
+           rewrite big_one; clear big_one.
+           apply H. (* слева Z_to_bytes по определению *)
+      ++ list_solve.
 Qed.
 
 Lemma elim_transform : forall (lb : list byte),
@@ -554,21 +533,11 @@ Proof.
     apply inj_eq.
     symmetry.
     exact size.
-  - clear H0.
-    specialize (Vec512.unsigned_repr (bytes_to_Z 64 lb)) as UR.
-    lapply UR.
-    -- clear UR.
-       intros cancel.
-       rewrite cancel.
-       clear cancel.
-       pose proof elim_ZtoB as elim.
-       specialize (elim 64%nat lb).
-       lapply elim.
-       --- clear elim. 
-           intros thing.
-           rewrite thing.
-           + reflexivity.
-       --- easy.
+  - clear H0; clear H1; clear H.
+    rewrite Vec512.unsigned_repr.
+    -- rewrite elim_ZtoB.
+       --- reflexivity.
+       --- exact size.
     -- split.
        --- apply BtoZ_nonneg.
        --- apply BtoZ_lt.
@@ -591,64 +560,46 @@ Lemma th_of_pi_alt : forall (n : nat) (lb : list byte),
  nth n (pi lb) Inhabitant_byte.
 Proof.
   intros n lb range.
-  unfold pi. unfold pi_byte.
+  unfold pi. 
+  unfold pi_byte.
   unfold nthi_bytes.
-  specialize (nth_map' (fun x : byte =>
-      nth (Z.to_nat (Byte.unsigned x)) pi' Inhabitant_byte) Inhabitant_byte Inhabitant_byte n lb).
-  intros R.
-  lapply R.
-  - clear R.
-    intros H.
-    rewrite H.
-    reflexivity.
+  specialize (nth_map' (fun x : byte => nth (Z.to_nat (Byte.unsigned x)) pi' Inhabitant_byte) Inhabitant_byte Inhabitant_byte n lb) as W. (* просто rewrite не сработает *)
+  rewrite W.
+  - reflexivity.
   - exact range.
 Qed.
 
 Lemma ith_of_pi_tau : forall (b: block512) (i : Z),
-  (0 <= i < 64) -> pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) i) = nthi_bytes (block512_to_bytes (p (s b))) i.
+  ((Z.to_nat i < Datatypes.length tau)%nat) -> pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) i) = nthi_bytes (block512_to_bytes (p (s b))) i.
 Proof.
-  intros b i R.
-  assert ((Z.to_nat i < Datatypes.length tau)%nat) as within_tau.
-  { destruct R as [ge0 lt64].
-    specialize (Nat2Z.id (Datatypes.length tau)) as T; rewrite <- T; clear T.
-    apply Z2Nat.inj_lt.
-    - exact ge0.
-    - rewrite <- Zlength_correct.
-      assert (Zlength tau = 64) as size by reflexivity; rewrite size; clear size.
-      lia.
-    - rewrite <- Zlength_correct.
-      assert (Zlength tau = 64) as size by reflexivity; rewrite size; clear size.
-      exact lt64.
-  }
+  intros b i within_tau.
   rewrite ps_short.
   rewrite elim_transform.
   - unfold tau_bytes.
     unfold pi_byte.
     unfold nthi_bytes.
-    pose proof nth_nth_nth_map as H1.
+    pose proof nth_nth_nth_map as H1. (* обязательное действие, без него specialize не сработает *)
     specialize (H1 byte (pi (block512_to_bytes b)) (Z.to_nat i) Inhabitant_byte tau Inhabitant_nat).
     rewrite <- H1.
     + clear H1.
-      pose proof nth_nth_nth_map as H2.
+      pose proof nth_nth_nth_map as H2. (* то же самое *)
       specialize (H2 byte (block512_to_bytes b) (Z.to_nat i) Inhabitant_byte tau Inhabitant_nat).
       rewrite <- H2.
       ++ clear H2.
          apply th_of_pi_alt.
-         specialize (Nat2Z.id (Datatypes.length tau)) as T; rewrite <- T in within_tau; clear T.
-         specialize (Nat2Z.id (Z.to_nat i)) as T; rewrite <- T in within_tau; clear T.
+         specialize (Nat2Z.id (Datatypes.length tau)) as T; rewrite <- T in within_tau; clear T. (* для Z2Nat.inj_lt *)
+         specialize (Nat2Z.id (Z.to_nat i)) as T; rewrite <- T in within_tau; clear T. (* а это для сворачивания шестидесяти четырёх S *)
          destruct (Z.to_nat i).
-         * simpl. lia.
-         * do 63 (destruct n; try (simpl; lia)).
-           destruct R as [ge0 lt64].
+         * simpl. 
+           lia.
+         * do 63 (destruct n; try (simpl; lia)). (* разбираем все оставшиеся элементы tau и выходим за него, получая Inhabitant_byte, но мы не могли выйти за tau из-за within_tau, поэтому ищем противоречие *)
            rewrite <- Z2Nat.inj_lt in within_tau.
            -- rewrite 64!Nat2Z.inj_succ in within_tau.
               rewrite <- 64!Z.add_1_r in within_tau.
               ring_simplify in within_tau.
               assert (Z.of_nat (Datatypes.length tau) = 64) as obvious by reflexivity; rewrite obvious in within_tau; clear obvious.
-              specialize (Z.add_lt_mono_r (Z.of_nat n) 0 64) as W; rewrite <- W in within_tau; clear W.
-              specialize (Z_of_nat_ge_O n) as W.
-              contradiction (W within_tau).
-           -- lia.
+              lia. (* натуральное число не может быть меньше нуля *)
+           -- lia. 
            -- discriminate.
       ++ left.
          exact within_tau.
@@ -658,17 +609,8 @@ Proof.
 Qed.
 
 Lemma l_equiv : forall (b : block512), 
-  map (fun k : Z => (* надо доказать, что это L(b) *)
-     fold_right Int64.xor (Int64.repr 0)
-       (map
-          (fun i : Z =>
-           fold_right Int64.xor (Int64.repr 0)
-             (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
-                (bit
-                   (Byte.unsigned
-                      (nthi_bytes (block512_to_bytes b)
-                         (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7]))
-    [0; 1; 2; 3; 4; 5; 6; 7] =
+  map (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0)) (bit (Byte.unsigned (nthi_bytes (block512_to_bytes b) (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7] (* доказываем, что это L(b) *)
+  =
   map (fun x : int64 => b_times_A x) (block512_to_int64s b). (* а это L(b) по определению *)
 Proof.
   intros b.
@@ -676,18 +618,7 @@ Proof.
 Admitted.
 
 Definition the_thing (b : block512) (k : Z) : int64 :=
-  fold_right Int64.xor (Int64.repr 0)
-    (map
-       (fun i : Z =>
-        fold_right Int64.xor (Int64.repr 0)
-          (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
-             (bit
-                (Byte.unsigned
-                   (pi_byte
-                      (nthi_bytes
-                         (tau_bytes (block512_to_bytes b))
-                         (8 * k + i)))))))
-       [0; 1; 2; 3; 4; 5; 6; 7]).
+  fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0)) (bit (Byte.unsigned (pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) (8 * k + i))))))) [0; 1; 2; 3; 4; 5; 6; 7]).
 
 Lemma alg_equiv : forall (b : block512),
   LPS_opt b = l (p (s b)).
@@ -695,87 +626,45 @@ Proof.
   intros b.
   unfold LPS_opt.
   unfold tableLPS_i_j.
-  assert ((fun k : Z =>
-      fold_right Int64.xor (Int64.repr 0)
-        (map
-           (fun i : Z =>
-            fold_right Int64.xor (Int64.repr 0)
-              (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
-                 (bit
-                    (Byte.unsigned
-                       (pi_byte
-                          (nthi_bytes
-                             (tau_bytes (block512_to_bytes b))
-                             (8 * k + i)))))))
-           [0; 1; 2; 3; 4; 5; 6; 7])) = the_thing b) as H by reflexivity; rewrite H; clear H.
-  assert (map (the_thing b) [0; 1; 2; 3; 4; 5; 6; 7] = 
-          map (fun k : Z => fold_right Int64.xor (Int64.repr 0)
-    (map
-       (fun i : Z =>
-        fold_right Int64.xor (Int64.repr 0)
-          (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
-             (bit
-                (Byte.unsigned
-                   (nthi_bytes (block512_to_bytes (p (s b))) (8 * k + i))))))
-       [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7]) as H.
-  - unfold the_thing.
-    pose proof map_ext_in as M.
-    specialize (M Z int64 (fun k : Z =>
-                             fold_right Int64.xor (Int64.repr 0)
-                               (map
-                                  (fun i : Z =>
-                                   fold_right Int64.xor (Int64.repr 0)
-                                     (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
-                                        (bit
-                                           (Byte.unsigned
-                                              (pi_byte
-                                                 (nthi_bytes
-                                                    (tau_bytes (block512_to_bytes b))
-                                                    (8 * k + i)))))))
-                                  [0; 1; 2; 3; 4; 5; 6; 7])) (fun k : Z =>
-                             fold_right Int64.xor (Int64.repr 0)
-                               (map
-                                  (fun i : Z =>
-                                   fold_right Int64.xor (Int64.repr 0)
-                                     (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0))
-                                        (bit
-                                           (Byte.unsigned
-                                              (nthi_bytes (block512_to_bytes (p (s b)))
-                                                 (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7]).
-    lapply M.
-    -- trivial.
-    -- clear M.
-       intros i R1.
-       apply remove_fold_right_xor.
-       pose proof map_ext_in as M.
-       specialize (M Z int64 (fun i0 : Z =>
-         fold_right Int64.xor (Int64.repr 0)
-           (map (fun k0 : Z => nthi_int64 A (63 - 8 * i0 - k0))
-              (bit
-                 (Byte.unsigned
-                    (pi_byte
-                       (nthi_bytes (tau_bytes (block512_to_bytes b))
-                          (8 * i + i0))))))) (fun i0 : Z =>
-         fold_right Int64.xor (Int64.repr 0)
-           (map (fun k0 : Z => nthi_int64 A (63 - 8 * i0 - k0))
-              (bit
-                 (Byte.unsigned
-                    (nthi_bytes (block512_to_bytes (p (s b)))
-                       (8 * i + i0)))))) [0; 1; 2; 3; 4; 5; 6; 7] ).
-       lapply M.
-       + trivial.
-       + clear M.
-         intros l R2.
-         apply remove_fold_right_xor.
-         apply remove_map.
-         apply f_equal.
-         apply f_equal.
-         apply ith_of_pi_tau.
-         unfold In in R1.
-         unfold In in R2.
-         lia.
-  - rewrite H; clear H.
-    unfold l.
-    apply f_equal.
-    apply l_equiv.
+  assert ((fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0)) (bit (Byte.unsigned (pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) (8 * k + i))))))) [0; 1; 2; 3; 4; 5; 6; 7]))
+          =
+          the_thing b) as H by reflexivity; rewrite H; clear H.
+  assert (map (the_thing b) [0; 1; 2; 3; 4; 5; 6; 7] 
+          = 
+          map (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0)) (bit (Byte.unsigned (nthi_bytes (block512_to_bytes (p (s b))) (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7]) as H.
+  {
+   unfold the_thing.
+   pose proof map_ext_in as M. (* обязательное действие, без него specialize не сработает *)
+   specialize (M 
+               Z
+               int64
+               (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0)) (bit (Byte.unsigned (pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) (8 * k + i))))))) [0; 1; 2; 3; 4; 5; 6; 7]))
+               (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0)) (bit (Byte.unsigned (nthi_bytes (block512_to_bytes (p (s b))) (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7]).
+   apply M.
+   clear M.
+   intros i R1.
+   apply remove_fold_right_xor.
+   pose proof map_ext_in as M. (* то же самое *)
+   specialize (M 
+               Z
+               int64 
+               (fun i0 : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i0 - k0)) (bit (Byte.unsigned (pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) (8 * i + i0)))))))
+               (fun i0 : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i0 - k0)) (bit (Byte.unsigned (nthi_bytes (block512_to_bytes (p (s b))) (8 * i + i0)))))) [0; 1; 2; 3; 4; 5; 6; 7] ).
+   apply M.
+   clear M.
+   intros l R2.
+   apply remove_fold_right_xor.
+   apply remove_map.
+   apply f_equal.
+   apply f_equal.
+   apply ith_of_pi_tau.
+   unfold In in R1.
+   unfold In in R2.
+   assert ((Datatypes.length tau) = 64%nat) as obvious by reflexivity; rewrite obvious; clear obvious.
+   lia.
+  }
+  rewrite H; clear H.
+  unfold l.
+  apply f_equal.
+  apply l_equiv.
 Qed.
