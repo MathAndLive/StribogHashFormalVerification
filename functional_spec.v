@@ -338,6 +338,7 @@ Definition LPS_opt (b : block512) : block512 :=
     [0; 1; 2; 3; 4; 5; 6; 7]
   ).
 
+(* может оказаться лишней, на всякий случай оставлю, пока не удаляйте *)
 Lemma list_int64_nth_equal : forall (l1 : list int64) (l2 : list int64),
   l1 = l2 <-> ((length l1 = length l2) /\ forall (i : nat), (Nat.lt i (length l1)) -> nth i l1 Inhabitant_int64 = nth i l2 Inhabitant_int64).
 Proof.
@@ -362,6 +363,7 @@ Proof.
              ++ simpl. specialize (Zlt_neg_0 p0) as notn. contradiction (n notn).
 Qed.
 
+(* может оказаться лишней, на всякий случай оставлю, пока не удаляйте *)
 Lemma list_byte_nth_equal : forall (l1 : list byte) (l2 : list byte),
   l1 = l2 <-> ((length l1 = length l2) /\ forall (i : nat), (Nat.lt i (length l1)) -> nth i l1 Inhabitant_byte = nth i l2 Inhabitant_byte).
 Proof.
@@ -520,7 +522,6 @@ Proof.
            rewrite two_power_nat_equiv.
            rewrite Z_mod_plus_full.
            simpl.
-           Search Z.modulo.
            assert (Z.pow_pos 2 8 = Byte.modulus) as K by reflexivity; rewrite K; clear K.
            rewrite <- Byte.unsigned_repr_eq.
            rewrite 2!Byte.repr_unsigned.
@@ -644,9 +645,7 @@ Proof.
               rewrite <- 64!Z.add_1_r in within_tau.
               ring_simplify in within_tau.
               assert (Z.of_nat (Datatypes.length tau) = 64) as obvious by reflexivity; rewrite obvious in within_tau; clear obvious.
-              Search (?a + ?b < ?c + ?b).
               specialize (Z.add_lt_mono_r (Z.of_nat n) 0 64) as W; rewrite <- W in within_tau; clear W.
-              Search (Z.of_nat ?a >= 0).
               specialize (Z_of_nat_ge_O n) as W.
               contradiction (W within_tau).
            -- lia.
@@ -659,7 +658,7 @@ Proof.
 Qed.
 
 Lemma l_equiv : forall (b : block512), 
-  map (fun k : Z =>
+  map (fun k : Z => (* надо доказать, что это L(b) *)
      fold_right Int64.xor (Int64.repr 0)
        (map
           (fun i : Z =>
@@ -670,7 +669,7 @@ Lemma l_equiv : forall (b : block512),
                       (nthi_bytes (block512_to_bytes b)
                          (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7]))
     [0; 1; 2; 3; 4; 5; 6; 7] =
-  map (fun x : int64 => b_times_A x) (block512_to_int64s b).
+  map (fun x : int64 => b_times_A x) (block512_to_int64s b). (* а это L(b) по определению *)
 Proof.
   intros b.
   admit.
