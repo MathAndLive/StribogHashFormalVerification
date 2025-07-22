@@ -422,43 +422,6 @@ Proof.
   apply ZtoC_length.
 Qed.
 
-Lemma elim_ZtoB : forall (k : nat) (lb : list byte),
-  (length lb = k) -> Z_to_bytes k (bytes_to_Z k lb) = lb.
-Proof.
-  intros k.
-  induction k as [| k' IHk'].
-  - intros lb size.
-    simpl.
-    unfold Z_to_bytes.
-    unfold Z_to_chunks.
-    list_simplify.
-    symmetry.
-    apply Z2Nat.inj_iff.
-    -- exact H2.
-    -- lia.
-    -- rewrite Zlength_correct.
-       simpl.
-       rewrite Nat2Z.id.
-       exact size.
-  - intros lb size.
-    admit.
-  (*list_simplify.
-  - rewrite Zlength_correct.
-    rewrite ZtoB_length.
-    rewrite Zlength_correct.
-    apply inj_eq.
-    symmetry.
-    exact size.    
-  - clear H0.
-    unfold Z_to_bytes.
-    unfold Z_to_bytes in H1.
-    Search (Znth ?a (map ?b ?c)).
-    rewrite Znth_map.
-    -- 
-    -- rewrite Zlength_map in H1.
-       exact H1.*)
-Admitted.
-
 Lemma BtoZ_nonneg : forall (k : nat) (lb : list byte),
   0 <= bytes_to_Z k lb.
 Proof.
@@ -500,10 +463,82 @@ Proof.
     simpl.
     destruct lb.
     -- discriminate.
-    -- assert (Datatypes.length lb = k').
-       + list_solve.
-       + admit.
-Admitted.
+    -- assert (Datatypes.length lb = k') as size by list_solve.
+       clear hyp.
+       rewrite 7!Pos2Z.pos_xI.
+       rewrite Pos.pred_double_spec.
+       ring_simplify.
+       rewrite Pos2Z.inj_pred.
+       + assert (Z.pos (shift_nat (k' * 8) 1)~0 = 2 * Z.pos (shift_nat (k' * 8) 1)) as L by apply Pos2Z.pos_xO; rewrite L; clear L.
+         rewrite Z.mul_pred_r.
+         ring_simplify.
+         rewrite shift_nat_correct.
+         ring_simplify.
+         rewrite <- two_power_nat_correct.
+         specialize (IHk' lb).
+         lapply IHk'.
+         * rep_lia.
+         * exact size.
+       + easy.
+Qed.
+
+Lemma elim_ZtoB : forall (k : nat) (lb : list byte),
+  (length lb = k) -> Z_to_bytes k (bytes_to_Z k lb) = lb.
+Proof.
+  intros k.
+  induction k as [| k' IHk'].
+  - intros lb size.
+    simpl.
+    unfold Z_to_bytes.
+    unfold Z_to_chunks.
+    list_simplify.
+    symmetry.
+    apply Z2Nat.inj_iff.
+    -- exact H2.
+    -- lia.
+    -- rewrite Zlength_correct.
+       simpl.
+       rewrite Nat2Z.id.
+       exact size.
+  - intros lb size'.
+    simpl.
+    destruct lb.
+    + discriminate.
+    + assert (Datatypes.length lb = k') as size by list_solve.
+      clear size'.
+      specialize (IHk' lb).
+      lapply IHk'.
+      ++ intros H; clear IHk'.
+         unfold Z_to_bytes.
+         unfold Z_to_chunks.
+         fold Z_to_chunks.
+         simpl.
+         apply cons_congr.
+         * assert (2 * (2 * (2 * (2 * (2 * (2 * (2 * (2 * bytes_to_Z k' lb))))))) = (bytes_to_Z k' lb) * 2^8) as W by lia; rewrite W; clear W.
+           unfold LSB.
+           rewrite Z_mod_two_p_eq.
+           rewrite two_power_nat_equiv.
+           rewrite Z_mod_plus_full.
+           simpl.
+           Search Z.modulo.
+           assert (Z.pow_pos 2 8 = Byte.modulus) as K by reflexivity; rewrite K; clear K.
+           rewrite <- Byte.unsigned_repr_eq.
+           rewrite 2!Byte.repr_unsigned.
+           reflexivity.
+         * assert ((Z.shiftr (Byte.unsigned i + 2 * (2 * (2 * (2 * (2 * (2 * (2 * (2 * bytes_to_Z k' lb)))))))) 8) = bytes_to_Z k' lb) as big_one.
+           ** assert (2 * (2 * (2 * (2 * (2 * (2 * (2 * (2 * bytes_to_Z k' lb))))))) = (bytes_to_Z k' lb) * 2^8) as obvious by lia; rewrite obvious; clear obvious.
+              rewrite Z.shiftr_div_pow2.
+              -- rewrite Z.div_add.
+                 --- assert (Byte.unsigned i / 2 ^ 8 = 0) as tiny.
+                     { apply Z.div_small. rep_lia. }
+                     rewrite tiny.
+                     reflexivity.
+                 --- lia.
+              -- lia.
+          ** rewrite big_one; clear big_one.
+             auto. (* слева Z_to_bytes по определению *)
+      ++ exact size.
+Qed.
 
 Lemma elim_transform : forall (lb : list byte),
   (length lb = 64%nat) -> block512_to_bytes (bytes_to_block512 lb) = lb.
