@@ -173,7 +173,7 @@ Definition pi' : list byte := map Byte.repr
         89; 166; 116; 210; 230; 244; 180; 192; 209; 102; 175; 194; 57; 75; 99; 182
     ].
 
-Definition tau : list Z :=
+Definition tau : list nat := map (Z.to_nat)
   [0; 8; 16; 24; 32; 40; 48; 56;
    1; 9; 17; 25; 33; 41; 49; 57;
    2; 10; 18; 26; 34; 42; 50; 58;
@@ -234,7 +234,7 @@ Definition s (v : block512) : block512 :=
 (* --- ПРЕОБРАЗОВАНИЕ P --- *)
 
 Definition tau_bytes (bytes : list byte) : list byte :=
-  (map (fun i => nthi_bytes bytes i) tau).
+  (map (fun i : nat => nth i bytes Inhabitant_byte) tau).
 
 Definition p (l : block512) : block512 :=
     bytes_to_block512 (tau_bytes (block512_to_bytes l)).
@@ -585,33 +585,78 @@ Proof.
   - reflexivity.
 Qed.
 
-Lemma map_nthi_bytes : forall (f : Z -> byte) (l : list Z) (i : Z),
-  (0 <= i < Zlength l) -> nthi_bytes (map f l) i = f (nthi_Z l i).
+Lemma th_of_pi_alt : forall (n : nat) (lb : list byte),
+ (n < Datatypes.length lb)%nat -> nth (Z.to_nat (Byte.unsigned (nth n lb Inhabitant_byte))) pi' Inhabitant_byte =
+ nth n (pi lb) Inhabitant_byte.
 Proof.
-  intros f l0 i R.
-  destruct R as [ige0 iltsize].
+  intros n lb range.
+  unfold pi. unfold pi_byte.
   unfold nthi_bytes.
-  assert (Nat.lt (Z.to_nat i) (length l0)).
-  { rewrite Nat2Z.inj_lt. rewrite <- Zlength_correct. lia. }
-  assert (~ l0 = []).
-  {  admit. }
-  
-Admitted.
+  specialize (nth_map' (fun x : byte =>
+      nth (Z.to_nat (Byte.unsigned x)) pi' Inhabitant_byte) Inhabitant_byte Inhabitant_byte n lb).
+  intros R.
+  lapply R.
+  - clear R.
+    intros H.
+    rewrite H.
+    reflexivity.
+  - exact range.
+Qed.
 
 Lemma ith_of_pi_tau : forall (b: block512) (i : Z),
   (0 <= i < 64) -> pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) i) = nthi_bytes (block512_to_bytes (p (s b))) i.
 Proof.
   intros b i R.
+  assert ((Z.to_nat i < Datatypes.length tau)%nat) as within_tau.
+  { destruct R as [ge0 lt64].
+    specialize (Nat2Z.id (Datatypes.length tau)) as T; rewrite <- T; clear T.
+    apply Z2Nat.inj_lt.
+    - exact ge0.
+    - rewrite <- Zlength_correct.
+      assert (Zlength tau = 64) as size by reflexivity; rewrite size; clear size.
+      lia.
+    - rewrite <- Zlength_correct.
+      assert (Zlength tau = 64) as size by reflexivity; rewrite size; clear size.
+      exact lt64.
+  }
   rewrite ps_short.
   rewrite elim_transform.
-  unfold tau_bytes.
-  assert (Zlength tau = 64) as sixtyfourbytes by reflexivity.
-  rewrite <- sixtyfourbytes in R; clear sixtyfourbytes.
-  rewrite 2!map_nthi_bytes.
-  - admit. 
-  - exact R.
-  - exact R.
-Admitted.
+  - unfold tau_bytes.
+    unfold pi_byte.
+    unfold nthi_bytes.
+    pose proof nth_nth_nth_map as H1.
+    specialize (H1 byte (pi (block512_to_bytes b)) (Z.to_nat i) Inhabitant_byte tau Inhabitant_nat).
+    rewrite <- H1.
+    + clear H1.
+      pose proof nth_nth_nth_map as H2.
+      specialize (H2 byte (block512_to_bytes b) (Z.to_nat i) Inhabitant_byte tau Inhabitant_nat).
+      rewrite <- H2.
+      ++ clear H2.
+         apply th_of_pi_alt.
+         specialize (Nat2Z.id (Datatypes.length tau)) as T; rewrite <- T in within_tau; clear T.
+         specialize (Nat2Z.id (Z.to_nat i)) as T; rewrite <- T in within_tau; clear T.
+         destruct (Z.to_nat i).
+         * simpl. lia.
+         * do 63 (destruct n; try (simpl; lia)).
+           destruct R as [ge0 lt64].
+           rewrite <- Z2Nat.inj_lt in within_tau.
+           -- rewrite 64!Nat2Z.inj_succ in within_tau.
+              rewrite <- 64!Z.add_1_r in within_tau.
+              ring_simplify in within_tau.
+              assert (Z.of_nat (Datatypes.length tau) = 64) as obvious by reflexivity; rewrite obvious in within_tau; clear obvious.
+              Search (?a + ?b < ?c + ?b).
+              specialize (Z.add_lt_mono_r (Z.of_nat n) 0 64) as W; rewrite <- W in within_tau; clear W.
+              Search (Z.of_nat ?a >= 0).
+              specialize (Z_of_nat_ge_O n) as W.
+              contradiction (W within_tau).
+           -- lia.
+           -- discriminate.
+      ++ left.
+         exact within_tau.
+    + left.
+      exact within_tau. 
+  - reflexivity.
+Qed.
 
 Lemma l_equiv : forall (b : block512), 
   map (fun k : Z =>
