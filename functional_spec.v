@@ -672,6 +672,96 @@ Proof.
   exact H.
 Qed.
 
+Lemma fold_right_concat : forall (u : list (list int64)),
+ fold_right Int64.xor (Int64.repr 0) (concat u) =
+ fold_right Int64.xor (Int64.repr 0) (map (fun v : list int64 => fold_right Int64.xor (Int64.repr 0) v) u).
+Proof.
+ intros u.
+ admit.
+Admitted.
+
+Lemma l_final : forall (t : Z),
+     0 <= t < two_power_nat 64 -> 
+     fold_right Int64.xor (Int64.repr 0)
+  (map
+     (fun i0 : Z =>
+      fold_right Int64.xor (Int64.repr 0)
+        (map
+           (fun k0 : Z =>
+            nth (Z.to_nat (8 * i0 + k0)) 
+              (rev A) Inhabitant_int64)
+           (bit
+              (nth (Z.to_nat i0)
+                 (Z_to_chunks 8 8 t) Inhabitant_Z))))
+     [0; 1; 2; 3; 4; 5; 6; 7]) =
+fold_right Int64.xor (Int64.repr 0)
+  (map
+     (fun x0 : Z =>
+      nth (Z.to_nat x0) (rev A) Inhabitant_int64)
+     (bit t)).
+Proof.
+  intros t range.
+  assert (bit t = flat_map (fun m : Z => 
+   map (fun p : Z => p + 8 * m)
+   (bit
+    (nth (Z.to_nat m) (Z_to_chunks 8 8 t)
+       Inhabitant_Z))
+  ) [0; 1; 2; 3; 4; 5; 6; 7]) as H.
+  {
+   admit.
+  }
+  rewrite H; clear H.
+  rewrite flat_map_concat_map.
+  rewrite concat_map.
+  rewrite map_map.
+  assert (fold_right Int64.xor (Int64.repr 0)
+  (concat
+     (map
+        (fun x : Z =>
+         map
+           (fun x0 : Z =>
+            nth (Z.to_nat x0) (rev A) Inhabitant_int64)
+           (map (fun p0 : Z => p0 + 8 * x)
+              (bit
+                 (nth (Z.to_nat x) (Z_to_chunks 8 8 t)
+                    Inhabitant_Z)))) [0; 1; 2; 3; 4; 5; 6; 7]))
+          =
+          fold_right Int64.xor (Int64.repr 0)
+  (concat
+     (map
+        (fun x : Z =>
+         map
+           (fun x0 : Z =>
+            nth (Z.to_nat (8 * x + x0)) (rev A) Inhabitant_int64)
+              (bit
+                 (nth (Z.to_nat x) (Z_to_chunks 8 8 t)
+                    Inhabitant_Z))) [0; 1; 2; 3; 4; 5; 6; 7]))) as W.
+  {
+   apply remove_fold_right_xor.
+   rewrite <- 2!flat_map_concat_map.
+   apply flat_map_ext.
+   intros j.
+   rewrite map_map.
+   pose proof map_ext_in as M.
+   specialize (M
+               Z
+               int64
+               (fun x : Z => nth (Z.to_nat (x + 8 * j)) (rev A) Inhabitant_int64)
+               (fun x0 : Z => nth (Z.to_nat (8 * j + x0)) (rev A) Inhabitant_int64)
+               (bit (nth (Z.to_nat j) (Z_to_chunks 8 8 t) Inhabitant_Z))).
+   apply M.
+   clear M.
+   intros k inside.
+   assert (k + 8 * j = 8 * j + k) as obvious by lia; rewrite obvious; clear obvious.
+   reflexivity.
+   }
+   rewrite W.
+   clear W.
+   rewrite fold_right_concat.
+   rewrite map_map.
+   reflexivity.
+Admitted.
+
 Lemma l_equiv : forall (b : block512), 
   map (fun k : Z => fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0)) (bit (Byte.unsigned (nthi_bytes (block512_to_bytes b) (8 * k + i)))))) [0; 1; 2; 3; 4; 5; 6; 7])) [0; 1; 2; 3; 4; 5; 6; 7] (* доказываем, что это L(b) *)
   =
@@ -859,19 +949,65 @@ Proof.
         lia.
    }  
    rewrite H; clear H.
-   
-   (* как дальше : (fun k0 : Z =>
-            nth (Z.to_nat (8 * i0 + k0)) 
-              (rev A) Inhabitant_int64)
-           (bit
-              (nth (Z.to_nat (8 * i + i0))
+   assert (fold_right Int64.xor (Int64.repr 0) (map (fun i0 : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nth (Z.to_nat (8 * i0 + k0))  (rev A) Inhabitant_int64) (bit (nth (Z.to_nat (8 * i + i0)) (Z_to_chunks 8 64 (Vec512.unsigned b)) Inhabitant_Z)))) [0; 1; 2; 3; 4; 5; 6; 7])
+           =
+           fold_right Int64.xor (Int64.repr 0) (map (fun i0 : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nth (Z.to_nat (8 * i0 + k0))  (rev A) Inhabitant_int64) (bit (nth (Z.to_nat i0) (Z_to_chunks 8 8 (nth (Z.to_nat i) (Z_to_chunks 64 8 (Vec512.unsigned b)) Inhabitant_Z)) Inhabitant_Z)))) [0; 1; 2; 3; 4; 5; 6; 7])) as H.
+   {
+    apply remove_fold_right_xor.
+    pose proof map_ext_in as M.
+    specialize (M
+                Z
+                int64
+                (fun i0 : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nth (Z.to_nat (8 * i0 + k0)) (rev A) Inhabitant_int64) (bit (nth (Z.to_nat (8 * i + i0)) (Z_to_chunks 8 64 (Vec512.unsigned b)) Inhabitant_Z))))
+                (fun i0 : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nth (Z.to_nat (8 * i0 + k0)) (rev A) Inhabitant_int64) (bit (nth (Z.to_nat i0) (Z_to_chunks 8 8 (nth (Z.to_nat i) (Z_to_chunks 64 8 (Vec512.unsigned b)) Inhabitant_Z)) Inhabitant_Z)))) [0; 1; 2; 3; 4; 5; 6; 7]).
+   apply M.
+   clear M.
+   intros j R2.
+   apply remove_fold_right_xor.
+   apply remove_map.
+   unfold bit.
+   apply filter_ext_in.
+   intros q.
+   assert (Z.eqf 
+            (Z.testbit (nth (Z.to_nat (8 * i + j)) (Z_to_chunks 8 64 (Vec512.unsigned b)) Inhabitant_Z)) 
+            (Z.testbit (nth (Z.to_nat j) (Z_to_chunks 8 8 (nth (Z.to_nat i) (Z_to_chunks 64 8 (Vec512.unsigned b)) Inhabitant_Z)) Inhabitant_Z)) 
+           -> 
+           forall v : Z,
+            In v [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16;
+            17; 18; 19; 20; 21; 22; 23; 24; 25; 26; 27; 28; 29; 30;
+            31; 32; 33; 34; 35; 36; 37; 38; 39; 40; 41; 42; 43; 44;
+            45; 46; 47; 48; 49; 50; 51; 52; 53; 54; 55; 56; 57; 58;
+            59; 60; 61; 62; 63] 
+            ->
+            Z.testbit (nth (Z.to_nat (8 * i + j)) (Z_to_chunks 8 64 (Vec512.unsigned b)) Inhabitant_Z) v =
+            Z.testbit (nth (Z.to_nat j) (Z_to_chunks 8 8 (nth (Z.to_nat i) (Z_to_chunks 64 8 (Vec512.unsigned b)) Inhabitant_Z)) Inhabitant_Z) v) as W by auto.
+   apply W; clear W.
+   apply Z.bits_inj_iff.
+   clear q.
+   admit.
+   }
+   rewrite H; clear H.
+   apply l_final.
+   pose proof (chunk_range 8 64 (nth (Z.to_nat i) (Z_to_chunks 64 8 (Vec512.unsigned b))
+   Inhabitant_Z) (Vec512.unsigned b)) as V.
+   apply V.
+   apply nth_In.
+   simpl.
+   unfold In in R1.
+   lia.   
+   (*nth (Z.to_nat (8 * i + i0))
                  (Z_to_chunks 8 64 (Vec512.unsigned b))
-                 Inhabitant_Z))
-     можно переписать дальше (какой-то из битов от битов какого-то байта *)
+                 Inhabitant_Z =
+      nth (Z.to_nat i0) (Z_to_chunks 8 8 (nth (Z.to_nat i)
+           (Z_to_chunks 64 8 (Vec512.unsigned b))
+           Inhabitant_Z)) Inhabitant_Z*)
+  
+   (* разбиение числа на k "векторов" длины m 
+    Fixpoint Z_to_chunks (m : nat) (k : nat) (z : Z) : list Z *)     
    
    (* remove_fold_right_xor не поможет, списки не обязательно равны *)
-   admit.   
 Admitted.
+
 
 Definition the_thing (b : block512) (k : Z) : int64 :=
   fold_right Int64.xor (Int64.repr 0) (map (fun i : Z => fold_right Int64.xor (Int64.repr 0) (map (fun k0 : Z => nthi_int64 A (63 - 8 * i - k0)) (bit (Byte.unsigned (pi_byte (nthi_bytes (tau_bytes (block512_to_bytes b)) (8 * k + i))))))) [0; 1; 2; 3; 4; 5; 6; 7]).
