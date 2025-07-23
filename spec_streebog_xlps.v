@@ -60,6 +60,9 @@ Definition Ax_data_mem (sh_r : share) (Ax_vals : list (list val)) (Ax : val) : m
 Definition r_i_expr (i : Z) (j : Z) (x_content y_content : block512) : val :=
   Vlong (Int64.repr (Znth j (block512_to_chunks (Vec512.xor x_content y_content)))).
 
+Definition gen_r_i_arr (x_content y_content : block512) :=
+  map (fun _x => Vlong (Int64.repr _x)) (block512_to_chunks (Vec512.xor x_content y_content)).
+
 Fixpoint Z_to_xor_list (k : nat) (x y : Z) : list val :=
   match k with
   | O => Vlong (Int64.xor (Int64.repr (LSB 64 x)) (Int64.repr (LSB 64 y))) :: nil
@@ -150,26 +153,26 @@ Lemma body_streebog_xlps :
   semax_body Vprog [] f_streebog_xlps streebog_xlps_spec.
 Proof.
   start_function.
-  assert (Zlength (block512_to_vals x_content) = 8) by reflexivity.
-  assert (Zlength (block512_to_vals y_content) = 8) by reflexivity.
-  assert (Zlength (block512_to_vals (Vec512.xor x_content y_content)) = 8) by reflexivity.
-  assert (Zlength (map (map Vlong) gen_Ax) = 8) by reflexivity.
-  assert (Zlength (Znth 0 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
-  assert (Zlength (Znth 1 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
-  assert (Zlength (Znth 2 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
-  assert (Zlength (Znth 3 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
-  assert (Zlength (Znth 4 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
-  assert (Zlength (Znth 5 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
-  assert (Zlength (Znth 6 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
-  assert (Zlength (Znth 7 (map (map Vlong) gen_Ax)) = 256) by reflexivity.
+  (* assert (Zlength (block512_to_vals x_content) = 8) by reflexivity. *)
+  (* assert (Zlength (block512_to_vals y_content) = 8) by reflexivity. *)
+  (* assert (Zlength (block512_to_vals (Vec512.xor x_content y_content)) = 8) by reflexivity. *)
+  (* assert (Zlength (map (map Vlong) gen_Ax) = 8) by reflexivity. *)
+  (* assert (Zlength (Znth 0 (map (map Vlong) gen_Ax)) = 256) by reflexivity. *)
+  (* assert (Zlength (Znth 1 (map (map Vlong) gen_Ax)) = 256) by reflexivity. *)
+  (* assert (Zlength (Znth 2 (map (map Vlong) gen_Ax)) = 256) by reflexivity. *)
+  (* assert (Zlength (Znth 3 (map (map Vlong) gen_Ax)) = 256) by reflexivity. *)
+  (* assert (Zlength (Znth 4 (map (map Vlong) gen_Ax)) = 256) by reflexivity. *)
+  (* assert (Zlength (Znth 5 (map (map Vlong) gen_Ax)) = 256) by reflexivity. *)
+  (* assert (Zlength (Znth 6 (map (map Vlong) gen_Ax)) = 256) by reflexivity. *)
+  (* assert (Zlength (Znth 7 (map (map Vlong) gen_Ax)) = 256) by reflexivity. *)
   (* assert (Zlength (Znth 0 (block512_to_vals (Vec512.xor x_content y_content))) = 8) by reflexivity. *)
  
   unfold data_mem, result_data_mem, Ax_data_mem.
   do 24 forward.
 
-  (* Definition Ax_vals := Ax_to_vals gen_Ax. *)
+  (* Definition r_i_vals := (gen_r_i_arr x_content y_content). *)
 
-  deadvars!.
+  (* deadvars!. *)
   forward_loop
   (EX i:Z, 
           (* EX r0:val, EX r1:val, EX r2:val, EX r3:val, EX r4:val, EX r5:val, *)
@@ -186,6 +189,7 @@ Proof.
             temp _r5 (r_i_expr i 5 x_content y_content);
             temp _r6 (r_i_expr i 6 x_content y_content);
             temp _r7 (r_i_expr i 7 x_content y_content);
+            temp _data data;
             gvars gv
      )
      SEP (data_mem sh_r x x_content;
@@ -215,7 +219,20 @@ Proof.
     Check _Ax.
     forward_if.
     -- unfold Ax_data_mem. forward.
-       entailer!. 
+       ++ entailer!. Search Z.land. unfold block512_to_chunks. unfold Z_to_chunks.
+       rewrite Znth_0_cons. admit.
+       ++ entailer!. admit.
+       ++ unfold result_data_mem. unfold data_mem. forward.
+          forward.
+          +++ entailer!. admit.
+          +++ 
+          (* +++ unfold r_i_expr. unfold block512_to_chunks. unfold Z_to_chunks. *)
+          (*     rewrite Znth_0_cons. *)
+          (*     rewrite Znth_pos_cons. *)
+          (*     rewrite Znth_0_cons. *)
+          (*     rewrite 2!Znth_pos_cons. *)
+          (*     rewrite Znth_0_cons. *)
+              forward.
 
     (* + rewrite (r_i_eq 0 0 x_content y_content). intros Hr1. *)
     (* unfold r_i_expr. *)
