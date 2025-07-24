@@ -126,6 +126,7 @@ Definition streebog_xlps_spec :=
   PRE [tptr tuint512, tptr tuint512, tptr tuint512]
     PROP(readable_share sh_r; writable_share sh_w)
     PARAMS (x; y; data)
+    GLOBALS (gv)
     SEP (
         data_mem sh_r x x_content;
         data_mem sh_r y y_content;
@@ -212,11 +213,9 @@ Proof.
     split. now rewrite r_i_eq.
     split. now rewrite r_i_eq.
     split. now rewrite r_i_eq.
-    split. now rewrite r_i_eq.
-    admit.
+    now rewrite r_i_eq.
 
   - Intros i.
-    Check _Ax.
     forward_if.
     -- unfold Ax_data_mem. forward.
        ++ entailer!. Search Z.land. unfold block512_to_chunks. unfold Z_to_chunks.
