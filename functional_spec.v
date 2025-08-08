@@ -630,8 +630,8 @@ Qed.
 Lemma bit_range : forall (m : nat) (t : Z) (z : Z),
  (0 <= z < two_power_nat m) -> In t (bit z) -> (0 <= t < (Z.of_nat m)).
 Proof.
+ unfold bit.
  intros m t z range inside.
- unfold bit in inside.
  rewrite filter_In in inside.
  destruct inside as [inthere thebit].
  assert (0 <= t <= 63) as W.
@@ -642,9 +642,9 @@ Proof.
  clear inthere.
  pose proof (Zbits_unsigned_range (Z.of_nat m) z) as H.
  lapply H.
- - intros Q; clear H.
+ - intros Q. clear H.
    lapply Q.
-   -- intros H; clear Q.
+   -- intros H. clear Q.
       specialize (Z.lt_ge_cases t (Z.of_nat m)) as [want | nottrue].
       + lia.
       + specialize (H t).
