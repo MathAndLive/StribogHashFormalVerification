@@ -60,6 +60,7 @@ Definition streebog_xlps_spec :=
   PRE [tptr tuint512, tptr tuint512, tptr tuint512]
     PROP(readable_share sh_r; writable_share sh_w)
     PARAMS (x; y; data)
+    GLOBALS (gv)
     (* LOCAL (gvars gv) *)
     SEP (data_at sh_r tuint512 (block512_to_vals x_content) x;
          data_at sh_r tuint512 (block512_to_vals y_content) y;
@@ -182,10 +183,10 @@ Proof.
          (* inv_data_mem sh_w data data_content;  *)
           data_at_ sh_w tuint512 data;
          (* inv_data_mem_res sh_w i data x_content y_content data_content; *)
-         data_at sh_r (tarray (tarray tulong 256) 8) Ax_vals (gv _Ax))
+         data_at sh_r (tarray (tarray tulong 256) 8) Ax_vals (gv _Ax); mem_mgr gv)
     ).
     - forward.
-    entailer!. normalize.
+    entailer!. 
     Exists 0. 
     entailer!.
     split. 
@@ -202,7 +203,8 @@ Proof.
               ++++++ now rewrite r_i_eq.
               ++++++ split.
                 +++++++ now rewrite r_i_eq.
-                +++++++ split.  now rewrite r_i_eq. admit.
+                +++++++ now rewrite r_i_eq.
+    + entailer!. admit.
     - Intros i. forward_if.
       -- abbreviate_semax. forward.
         * entailer!. admit.
