@@ -672,13 +672,35 @@ Proof.
   exact H.
 Qed.
 
+Lemma fold_right_xor_app : forall l1 l2,
+  fold_right Int64.xor (Int64.repr 0) (l1 ++ l2) =
+  Int64.xor (fold_right Int64.xor (Int64.repr 0) l1) (fold_right Int64.xor (Int64.repr 0) l2).
+Proof.
+  induction l1 as [| x xs IH].
+  - simpl. intros l2. 
+    assert (Int64.zero = (Int64.repr 0)) as H. { reflexivity. }
+    rewrite <- H. 
+    assert (forall x : list int64, Int64.xor Int64.zero (fold_right Int64.xor Int64.zero x) = (fold_right Int64.xor Int64.zero x)) as H3. 
+    {
+      unfold Int64.xor. intros x. simpl. apply Int64.repr_unsigned.
+    }
+    rewrite H3. reflexivity.
+  - simpl. intros l2. rewrite IH.
+    rewrite Int64.xor_assoc.
+    reflexivity.
+Qed.
+
+
 Lemma fold_right_concat : forall (u : list (list int64)),
  fold_right Int64.xor (Int64.repr 0) (concat u) =
  fold_right Int64.xor (Int64.repr 0) (map (fun v : list int64 => fold_right Int64.xor (Int64.repr 0) v) u).
 Proof.
- intros u.
- admit.
-Admitted.
+  intros u. 
+  induction u as [|hd tl IH].
+  - reflexivity.
+  - simpl.
+    rewrite <- IH. apply fold_right_xor_app. 
+Qed.
 
 Lemma l_final : forall (t : Z),
      0 <= t < two_power_nat 64 -> 
