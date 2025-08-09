@@ -702,6 +702,227 @@ Proof.
     rewrite <- IH. apply fold_right_xor_app. 
 Qed.
 
+
+Lemma nth_S_cons_eq :
+  forall (A : Type) (n : nat) (l : list A) (d a : A),
+  nth (S n) (a :: l) d = nth n l d.
+Proof.
+  intros. simpl. reflexivity.
+Qed.
+
+
+Lemma Z_to_chunks_prefix :
+  forall (i m n : nat) (z d : Z),
+    (i < m <= n)%nat ->
+    nth i (Z_to_chunks 8 m z) d =
+    nth i (Z_to_chunks 8 n z) d.
+Proof.
+  induction i as [|i' IH].
+  - intros. 
+    destruct m as [|m'].
+    + lia.
+    + simpl. destruct n as [|n'].
+      ++ lia.
+      ++ reflexivity.
+  - intros. assert ((i' < m <= n)%nat) by lia.
+    assert ((i' < m)%nat) by lia.
+    assert ((i' < n)%nat) by lia.
+    assert ((1 < m)%nat) by lia.
+    pose proof (nth_S_cons_eq Z i' (Z_to_chunks 8 (m - 1) (Z.shiftr z (Z.of_nat 8))) d (LSB 8 z)).
+    assert (forall x: nat, (x >= 1)%nat -> (Z_to_chunks 8 x z) = (LSB 8 z :: Z_to_chunks 8 (x - 1) (Z.shiftr z (Z.of_nat 8)))).
+    {
+      intros x.
+      destruct x as [| x'].
+      + lia. 
+      + simpl. 
+        pose proof (cons_congr (LSB 8 z) (LSB 8 z) (Z_to_chunks 8 x' (Z.shiftr z 8)) (Z_to_chunks 8 (x' - 0) (Z.shiftr z 8))) as W.
+        assert (LSB 8 z = LSB 8 z) by reflexivity.
+        assert (Z_to_chunks 8 x' (Z.shiftr z 8) = Z_to_chunks 8 (x' - 0) (Z.shiftr z 8)). 
+        {
+          rewrite Nat.sub_0_r. reflexivity. 
+        }
+        auto.
+    }
+    rewrite <- H5 in H4.
+    -- pose proof (nth_S_cons_eq Z i' (Z_to_chunks 8 (n - 1) (Z.shiftr z (Z.of_nat 8))) d (LSB 8 z)).
+       rewrite <- H5 in H6.
+       ---  pose proof (IH ((m - 1)%nat) ((n -1)%nat) (Z.shiftr z (Z.of_nat 8)) d).
+            assert ((i' < m - 1 <= n - 1)%nat) by lia.
+            rewrite H4.
+            rewrite H6.
+            auto.
+      --- lia.
+    -- lia.
+Qed.
+
+Lemma testbit_Z_to_chunks : forall t x m p0,
+  x = p0 + 8 * m ->
+  0 <= p0 < 8 ->
+  0 <= m < 8 ->
+  Z.testbit t x = Z.testbit (nth (Z.to_nat m) (Z_to_chunks 8 8 t) Inhabitant_Z) p0.
+Proof.
+  intros t x m p0 Hx Hp0 Hm.
+  rewrite Hx.
+  assert (Hnth : nth (Z.to_nat m) (Z_to_chunks 8 8 t) Inhabitant_Z = Z_mod_two_p (Z.shiftr t (8 * (Z.of_nat (Z.to_nat m)))) 8).
+  {
+    assert (((Z.to_nat m) < 8)%nat) by lia.
+    revert t.
+    induction (Z.to_nat m)  as [|m' IH].
+    + simpl. reflexivity.
+    + rewrite Nat2Z.inj_succ. rewrite Z.mul_succ_r.
+      intros t.
+      pose proof (nth_S_cons_eq Z m' (Z_to_chunks 8 7 (Z.shiftr t (Z.of_nat 8))) Inhabitant_Z (LSB 8 t)) as H3.
+      assert (H4: (Z_to_chunks 8 8 t) = (LSB 8 t :: Z_to_chunks 8 7 (Z.shiftr t (Z.of_nat 8)))) by reflexivity.
+      rewrite <- H4 in H3.
+      rewrite H3.
+      assert (H5: (m' < 7)%nat) by lia.
+      assert (H6: (m' < 8)%nat) by lia.
+      specialize (IH H6 (Z.shiftr t 8)).
+      pose proof (Z.shiftr_shiftr t 8 (8 * Z.of_nat m')) as H7.
+      assert (H8: 0 <= 8 * Z.of_nat m') by lia.
+      pose proof (H7 H8) as H9.
+      rewrite H9 in IH.
+      assert (H10: (8 * Z.of_nat m' + 8) = (8 + 8 * Z.of_nat m')) by lia.
+      rewrite H10.
+      rewrite <- IH.
+      pose proof (Z_to_chunks_prefix m' 7 8 (Z.shiftr t 8) Inhabitant_Z) as H11.
+      assert (H12: (m' < 7 <= 8)%nat). 
+      {
+        split.
+        + lia.
+        + lia.
+      }
+      pose proof (H11 H12) as H13.
+      auto.
+  }
+  rewrite Hnth.
+  assert (Hmod_testbit : forall z n i,
+    0 <= i < Z.of_nat n ->
+    Z.testbit (Z_mod_two_p z n) i = Z.testbit z i). 
+  {
+    intros.
+    rewrite Z_mod_two_p_eq.
+    rewrite two_power_nat_equiv.
+    pose proof (Z.mod_pow2_bits_low z (Z.of_nat n) i).
+    assert (i < Z.of_nat n) by lia.
+    auto.
+  }
+  pose proof (Hmod_testbit (Z.shiftr t (8 * Z.of_nat (Z.to_nat m))) 8%nat p0).
+  assert (0 <= p0 < Z.of_nat 8) by lia.
+  pose proof (H H0).
+  rewrite H1.
+  pose proof (Z.shiftr_spec t (8 * Z.of_nat (Z.to_nat m)) p0).
+  assert (0 <= p0) by lia.
+  pose proof (H2 H3).
+  rewrite H4.
+  pose proof (Z2Nat.id m).
+  assert (0 <= m) by lia.
+  pose proof (H5 H6).
+  rewrite H7.
+  reflexivity.
+
+Qed.
+
+
+Lemma filter_map_comm :
+  forall (A B : Type) (f : A -> B) (p : B -> bool) (l : list A),
+  (forall x, p (f x) = true -> True) -> 
+  filter p (map f l) = map f (filter (fun x => p (f x)) l).
+Proof.
+  admit.
+Admitted.
+
+Lemma concat_map_singleton : forall (A B : Type) (f : A -> list B) (x : A),
+  concat (map f [x]) = f x.
+Proof.
+  admit.
+Admitted.
+
+
+(* Lemma bit_flat_map :
+  forall t,
+    bit t =
+    flat_map (fun m : Z =>
+      map (fun p : Z => p + 8 * m)
+        (bit (nth (Z.to_nat m) (Z_to_chunks 8 8 t) Inhabitant_Z))
+    ) [0; 1; 2; 3; 4; 5; 6; 7].
+Proof.
+  intros t.
+  unfold bit.
+  rewrite flat_map_concat_map.
+  pose proof (concat_map_singleton _ _ (fun m : Z =>
+              map (fun p0 : Z => p0 + 8 * m)
+              (filter (fun x : Z => Z.testbit (nth (Z.to_nat m) (Z_to_chunks 8 8 t) Inhabitant_Z) x)
+              [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17; 18; 19; 20; 21; 22;
+              23; 24; 25; 26; 27; 28; 29; 30; 31; 32; 33; 34; 35; 36; 37; 38; 39; 40; 41; 42; 43;
+              44; 45; 46; 47; 48; 49; 50; 51; 52; 53; 54; 55; 56; 57; 58; 59; 60; 61; 62; 63]))
+
+                                 [0; 1; 2; 3; 4; 5; 6; 7]).
+  assert ([0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17; 18; 19; 20; 21; 22; 23; 24; 25;
+        26; 27; 28; 29; 30; 31; 32; 33; 34; 35; 36; 37; 38; 39; 40; 41; 42; 43; 44; 45; 46; 47; 48; 49;
+        50; 51; 52; 53; 54; 55; 56; 57; 58; 59; 60; 61; 62; 63] =
+  flat_map (fun m => map (fun p0 => p0 + 8 * m) [0;1;2;3;4;5;6;7]) [0;1;2;3;4;5;6;7]) by reflexivity.
+  rewrite H.
+  rewrite flat_map_concat_map.
+  pose proof (filter_concat (fun x : Z => Z.testbit t x) 
+              (map (fun m : Z => map (fun p0 : Z => p0 + 8 * m) [0; 1; 2; 3; 4; 5; 6; 7]) [0; 1; 2; 3; 4; 5; 6; 7])).
+  rewrite H0.
+  destruct [0; 1; 2; 3; 4; 5; 6; 7] as [| a0 [| a1 [| a2 [| a3 [| a4 [| a5 [| a6 [| a7 l']]]]]]]].
+  - admit.
+  - pose proof (concat_map_singleton _ _ (filter (fun x : Z => Z.testbit t x))
+                                 (map (fun m : Z => map (fun p0 : Z => p0 + 8 * m) [a0]) [a0])).
+                                 rewrite H1.
+ Search (map).
+  Search (filter).
+  Search (map).
+  pose proof (list_map_compose)
+  pose proof (filter_map_comm Z Z (fun p0 => p0 + 8 * m)
+  (fun x => Z.testbit (nth (Z.to_nat m) (Z_to_chunks 8 8 t) Inhabitant_Z) x)
+  [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17; 18; 19; 20; 21; 22; 23; 24; 25; 26; 27; 28; 29;
+   30; 31; 32; 33; 34; 35; 36; 37; 38; 39; 40; 41; 42; 43; 44; 45; 46; 47; 48; 49; 50; 51; 52; 53; 54; 55; 56; 57; 58; 59; 60; 61; 62; 63]
+  (fun _ => I)).
+
+
+  Search (list ?x = list ?s).
+  apply list_eq.
+  (* Покажем равенство множеств через in_eq *)
+  apply filter_ext_in.
+  intros x Hx.
+  split.
+  - (* -> *)
+    intros H.
+    (* x ∈ [0,63], Z.testbit t x = true *)
+    (* x = p + 8*m, 0 ≤ p < 8, 0 ≤ m < 8 *)
+    set (m := x / 8).
+    set (p := x mod 8).
+    assert (x = p + 8 * m) by (subst p m; rewrite Z.div_mod; lia).
+    assert (0 <= p < 8) by (subst p; apply Z.mod_pos_bound; lia).
+    assert (0 <= m < 8) by (subst m; apply Z.div_str_pos; lia).
+    exists m, p.
+    split; [assumption|].
+    split; [assumption|].
+    (* Теперь покажем, что p ∈ bit (nth m ...) *)
+    unfold bit.
+    rewrite filter_In.
+    split.
+    + (* p ∈ [0,7] *)
+      unfold In; lia.
+    + (* Z.testbit (nth ...) p = true *)
+      rewrite <- (testbit_Z_to_chunks t x m p); try lia; try assumption.
+      exact H.
+  - (* <- *)
+    intros [m [p [Hx [Hp Hin]]]].
+    subst x.
+    unfold bit in Hin.
+    rewrite filter_In in Hin.
+    destruct Hin as [Hp_in_range Hbit].
+    (* Z.testbit t (p + 8 * m) = Z.testbit (nth m (Z_to_chunks 8 8 t) ...) p *)
+    rewrite (testbit_Z_to_chunks t (p + 8 * m) m p); try lia; try assumption.
+    exact Hbit.
+Qed. *)
+
+
+
 Lemma l_final : forall (t : Z),
      0 <= t < two_power_nat 64 -> 
      fold_right Int64.xor (Int64.repr 0)
@@ -730,7 +951,9 @@ Proof.
        Inhabitant_Z))
   ) [0; 1; 2; 3; 4; 5; 6; 7]) as H.
   {
-   admit.
+     unfold bit.
+
+    admit.
   }
   rewrite H; clear H.
   rewrite flat_map_concat_map.
